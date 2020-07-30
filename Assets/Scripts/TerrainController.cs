@@ -8,12 +8,15 @@ public class TerrainController : MonoBehaviour
     private int resolution = 20;
     private float rootDimensions;
     private float dimensions;
-    private readonly int[] divDistance = {1600, 800, 400, 200, 100 };
+    private readonly int[] divDistance = { 1600, 800, 400, 200, 100 };
     private int myLoD; //Level of detail;
     private int maxLoD=5;
-    public int myFace;
-    public int[] myQuadrants; //List of own and parent quadrants
-    public Vector2 centerCoords;
+    [SerializeField]
+    private int myFace;
+    [SerializeField]
+    private int[] myQuadrants; //List of own and parent quadrants
+    [SerializeField]
+    private Vector2 centerCoords;
     private Vector3[] vertices;
     private int[] triangles;
     private Mesh mesh;
@@ -42,9 +45,9 @@ public class TerrainController : MonoBehaviour
         myQuadrants = quadrants;
         planet = transform.root.gameObject;
         planetScript = planet.GetComponent<PlanetController>();
-        rootDimensions = planetScript.rootDimensions;
+        rootDimensions = planetScript.RootDimensions;
         dimensions = rootDimensions / (Mathf.Pow(2, myLoD));
-        terrainPrefab = planetScript.terrainPrefab;
+        terrainPrefab = planetScript.TerrainPrefab;
         playerCam = GameObject.FindGameObjectWithTag("MainCamera");
         meshRenderer = gameObject.GetComponent<MeshRenderer>();
 
@@ -79,7 +82,7 @@ public class TerrainController : MonoBehaviour
         }
         if (myLoD<maxLoD && transform.childCount==0 && Vector3.Distance(playerCam.transform.position, transform.position + transform.rotation * (FaceToCubeCoords(Vector2.zero).normalized*rootDimensions/2)) < divDistance[myLoD])
         {
-            subdivide(myLoD + 1);
+            subdivide();
         }
     }
 
@@ -118,7 +121,7 @@ public class TerrainController : MonoBehaviour
         mesh.RecalculateNormals();
     }
 
-    void subdivide(int LoD)
+    void subdivide()
     {
         Vector3[] offsets = new Vector3[4];
         offsets[0] = transform.position + transform.rotation * new Vector3(-dimensions / 4, -dimensions / 4, 0);
@@ -135,7 +138,7 @@ public class TerrainController : MonoBehaviour
             }
             childQuadrants[myLoD + 1] = i;
             subTerrains[i] = GameObject.Instantiate(terrainPrefab, transform.position, transform.rotation, transform);
-            subTerrains[i].GetComponent<TerrainController>().Initiate(LoD,myFace,childQuadrants);
+            subTerrains[i].GetComponent<TerrainController>().Initiate(myLoD + 1, myFace,childQuadrants);
             subTerrains[i].transform.SetParent(transform);
         }
         meshRenderer.enabled = false;
@@ -156,7 +159,7 @@ public class TerrainController : MonoBehaviour
         }
         if (myFace == 2)
         {
-            cubeCoords = new Vector3(-(x), y, rootDimensions / 2);
+            cubeCoords = new Vector3(-x, y, rootDimensions / 2);
         }
         if (myFace == 3)
         {

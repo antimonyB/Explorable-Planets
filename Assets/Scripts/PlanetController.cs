@@ -19,7 +19,7 @@ public class PlanetController : MonoBehaviour
     {
         for (int i = 0; i < 6; i++) {
             terrainRoots[i] = GameObject.Instantiate(TerrainPrefab, transform.position, transform.rotation, transform);
-            terrainRoots[i].GetComponent<TerrainController>().Initiate(0,i,new int[] { 0 });
+            terrainRoots[i].GetComponent<TerrainController>().Initiate(0,new int[] { i });
         }
     }
 

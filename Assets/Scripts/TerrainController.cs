@@ -1,11 +1,12 @@
-﻿using System.Collections;
+﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
 public class TerrainController : MonoBehaviour
 {
     private bool initiated;
-    private int resolution = 20;
+    private int resolution = 32;
     private float rootDimensions;
     private float dimensions;
     private readonly int[] divDistance = { 1600, 800, 400, 200, 100 };
@@ -13,8 +14,6 @@ public class TerrainController : MonoBehaviour
     private int maxLoD=5;
     [SerializeField]
     private int myFace;
-    [SerializeField]
-    private int[] myQuadrants; //List of own and parent quadrants
     [SerializeField]
     private Vector2 centerCoords;
     private Vector3[] vertices;
@@ -31,18 +30,24 @@ public class TerrainController : MonoBehaviour
     private GameObject playerCam;
     [SerializeField]
     private GameObject sphere;
-    
+
+    [field: SerializeField]
+    public TerrainController[] Neighbours { get; set; } //Adjacent TerrainControllers, clockwise starting from topleft
+
+    [field:SerializeField]
+    public int[] MyQuadrants { get; set; }
+
     // Start is called before the first frame update
     void Start()
     {
     }
 
-    public void Initiate(int LoD, int face, int[] quadrants)
+    public void Initiate(int LoD, int[] quadrants)
     {
         initiated = false;
         myLoD = LoD;
-        myFace = face;
-        myQuadrants = quadrants;
+        myFace = quadrants[0];
+        MyQuadrants = quadrants;
         planet = transform.root.gameObject;
         planetScript = planet.GetComponent<PlanetController>();
         rootDimensions = planetScript.RootDimensions;
@@ -54,11 +59,11 @@ public class TerrainController : MonoBehaviour
         centerCoords = Vector2.zero;
         for(int i = 1; i <= LoD; i++)
         {
-            if (myQuadrants[i] < 2)
+            if (MyQuadrants[i] < 2)
                 centerCoords.y -= rootDimensions / Mathf.Pow(2, i) / 2;
             else
                 centerCoords.y += rootDimensions / Mathf.Pow(2, i) / 2;
-            if (myQuadrants[i]==0 || myQuadrants[i] == 2)
+            if (MyQuadrants[i]==0 || MyQuadrants[i] == 2)
                 centerCoords.x -= rootDimensions / Mathf.Pow(2, i) / 2;
             else
                 centerCoords.x += rootDimensions / Mathf.Pow(2, i) / 2;
@@ -80,7 +85,7 @@ public class TerrainController : MonoBehaviour
             Debug.LogWarning("ERROR: Unexpected update before initiation");
             return;
         }
-        if (myLoD<maxLoD && transform.childCount==0 && Vector3.Distance(playerCam.transform.position, transform.position + transform.rotation * (FaceToCubeCoords(Vector2.zero).normalized*rootDimensions/2)) < divDistance[myLoD])
+        if (myLoD<maxLoD && transform.childCount==0 && Vector3.Distance(playerCam.transform.position, transform.position + transform.rotation * (FaceToCubeCoords(Vector2.zero).normalized*rootDimensions/2)) < divDistance[myLoD] * rootDimensions / 1000)
         {
             subdivide();
         }
@@ -121,6 +126,205 @@ public class TerrainController : MonoBehaviour
         mesh.RecalculateNormals();
     }
 
+    int[] FindNeighbour(int[] quads, int dir)
+    {
+        int LoD = quads.Length - 1;
+        int[] nbrQuads = new int[LoD + 1];
+        //Quadrants on the same side as the direction being searched
+        int border1=0, border2=0;
+        //Quadrants on the opposite side of the direction being searched. Finding their neighbours is simple and safe.
+        int safe1=0, safe2=0;
+
+        bool isOnFaceBorder = true;
+
+        switch (dir)
+        {
+            case 0:
+                break;
+            case 1:
+                if (LoD == 0)
+                {
+                    switch (quads[0])
+                    {
+                        case 0:
+                            return new int[] { 4 };
+                        case 1:
+                            return new int[] { 4 };
+                        case 2:
+                            return new int[] { 4 };
+                        case 3:
+                            return new int[] { 4 };
+                        case 4:
+                            return new int[] { 2 };
+                        case 5:
+                            return new int[] { 0 };
+                        default:
+                            break;
+                    }
+                }
+                border1 = 2;
+                border2 = 3;
+                safe1 = 0;
+                safe2 = 1;
+
+                for(int i = 1; i <= LoD; i++)
+                {
+                    if(quads[i]==safe1 || quads[i] == safe2)
+                    {
+                        isOnFaceBorder = false;
+                        break;
+                    }
+                }
+                if(isOnFaceBorder)
+                {
+                    switch (quads[0])
+                    {
+                        case 0:
+                            break;
+                        case 1:
+                            safe1 = 1;
+                            safe2 = 3;
+                            break;
+                        case 2:
+                            safe1 = 3;
+                            safe2 = 2;
+                            break;
+                        case 3:
+                            safe1 = 2;
+                            safe2 = 0;
+                            break;
+                        case 4:
+                            safe1 = 3;
+                            safe2 = 2;
+                            break;
+                        case 5:
+                            break;
+                        default:
+                            Debug.LogWarning("ERROR: Invalid face");
+                            break;
+                    }
+                }
+                break;
+            case 2:
+                break;
+            case 3:
+                if (LoD == 0)
+                {
+                    switch (quads[0])
+                    {
+                        case 0:
+                            return new int[] { 5 };
+                        case 1:
+                            return new int[] { 5 };
+                        case 2:
+                            return new int[] { 5 };
+                        case 3:
+                            return new int[] { 5 };
+                        case 4:
+                            return new int[] { 0 };
+                        case 5:
+                            return new int[] { 2 };
+                        default:
+                            break;
+                    }
+                }
+                border1 = 0;
+                border2 = 1;
+                safe1 = 2;
+                safe2 = 3;
+
+                for (int i = 1; i <= LoD; i++)
+                {
+                    if (quads[i] == safe1 || quads[i] == safe2)
+                    {
+                        isOnFaceBorder = false;
+                        break;
+                    }
+                }
+                if (isOnFaceBorder)
+                {
+                    switch (quads[0])
+                    {
+                        case 0:
+                            break;
+                        case 1:
+                            safe1 = 3;
+                            safe2 = 1;
+                            break;
+                        case 2:
+                            safe1 = 1;
+                            safe2 = 0;
+                            break;
+                        case 3:
+                            safe1 = 0;
+                            safe2 = 2;
+                            break;
+                        case 4:
+                            break;
+                        case 5:
+                            safe1 = 1;
+                            safe2 = 0;
+                            break;
+                        default:
+                            Debug.LogWarning("ERROR: Invalid face");
+                            break;
+                    }
+                }
+                break;
+            case 4:
+                break;
+            case 5:
+                break;
+            case 6:
+                break;
+            case 7:
+                break;
+            default:
+                Debug.LogWarning("ERROR: Invalid direction");
+                break;
+        }
+
+        if (!isOnFaceBorder)
+        {
+            if (quads[LoD] == safe1)
+            {
+                Array.Copy(quads, nbrQuads, LoD + 1);
+                nbrQuads[LoD] = border1;
+                return nbrQuads;
+            }
+            else if (quads[LoD] == safe2)
+            {
+                Array.Copy(quads, nbrQuads, LoD + 1);
+                nbrQuads[LoD] = border2;
+                return nbrQuads;
+            }
+        }
+        int[] parentQuads = new int[LoD];
+        Array.Copy(quads, parentQuads, LoD);
+        int[] parentNbrQuads = FindNeighbour(parentQuads, dir);
+        Array.Copy(parentNbrQuads, nbrQuads, LoD);
+        if (quads[LoD] == border1)
+        {
+            nbrQuads[LoD] = safe1;
+        }
+        else if (quads[LoD] == border2)
+        {
+            nbrQuads[LoD] = safe2;
+        }
+
+        return nbrQuads;
+    }
+
+    TerrainController QuadsToTerrain(int[] quads)
+    {
+        Transform terrain=transform.root;
+        for(int i = 0; i<quads.Length; i++)
+        {
+            terrain = terrain.GetChild(quads[i]);
+        }
+        return terrain.GetComponent<TerrainController>();
+    }
+
     void subdivide()
     {
         Vector3[] offsets = new Vector3[4];
@@ -134,14 +338,17 @@ public class TerrainController : MonoBehaviour
             int[] childQuadrants = new int[myLoD + 2];
             for (int j = 0; j <= myLoD; j++)
             {
-                childQuadrants[j] = myQuadrants[j];
+                childQuadrants[j] = MyQuadrants[j];
             }
             childQuadrants[myLoD + 1] = i;
             subTerrains[i] = GameObject.Instantiate(terrainPrefab, transform.position, transform.rotation, transform);
-            subTerrains[i].GetComponent<TerrainController>().Initiate(myLoD + 1, myFace,childQuadrants);
+            subTerrains[i].GetComponent<TerrainController>().Initiate(myLoD + 1, childQuadrants);
             subTerrains[i].transform.SetParent(transform);
         }
         meshRenderer.enabled = false;
+        Neighbours = new TerrainController[8];
+        Neighbours[1] = QuadsToTerrain(FindNeighbour(MyQuadrants, 1));
+        Neighbours[3] = QuadsToTerrain(FindNeighbour(MyQuadrants, 3));
     }
 
     Vector3 FaceToCubeCoords(Vector2 faceCoords)

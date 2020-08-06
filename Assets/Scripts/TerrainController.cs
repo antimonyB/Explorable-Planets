@@ -6,11 +6,10 @@ using UnityEngine;
 public class TerrainController : MonoBehaviour
 {
     private bool initiated;
-    private int resolution = 32;
+    private int resolution = 33;
     private float rootDimensions;
     private float dimensions;
     private readonly int[] divDistance = { 1600, 800, 400, 200, 100 };
-    private int myLoD; //Level of detail;
     private int maxLoD=5;
     [SerializeField]
     private int myFace;
@@ -36,6 +35,7 @@ public class TerrainController : MonoBehaviour
 
     [field:SerializeField]
     public int[] MyQuadrants { get; set; }
+    public int MyLoD { get; set; }
 
     // Start is called before the first frame update
     void Start()
@@ -45,13 +45,13 @@ public class TerrainController : MonoBehaviour
     public void Initiate(int LoD, int[] quadrants)
     {
         initiated = false;
-        myLoD = LoD;
+        MyLoD = LoD;
         myFace = quadrants[0];
         MyQuadrants = quadrants;
         planet = transform.root.gameObject;
         planetScript = planet.GetComponent<PlanetController>();
         rootDimensions = planetScript.RootDimensions;
-        dimensions = rootDimensions / (Mathf.Pow(2, myLoD));
+        dimensions = rootDimensions / (Mathf.Pow(2, MyLoD));
         terrainPrefab = planetScript.TerrainPrefab;
         playerCam = GameObject.FindGameObjectWithTag("MainCamera");
         meshRenderer = gameObject.GetComponent<MeshRenderer>();
@@ -85,7 +85,7 @@ public class TerrainController : MonoBehaviour
             Debug.LogWarning("ERROR: Unexpected update before initiation");
             return;
         }
-        if (myLoD<maxLoD && transform.childCount==0 && Vector3.Distance(playerCam.transform.position, transform.position + transform.rotation * (FaceToCubeCoords(Vector2.zero).normalized*rootDimensions/2)) < divDistance[myLoD] * rootDimensions / 1000)
+        if (MyLoD<maxLoD && transform.childCount==0 && Vector3.Distance(playerCam.transform.position, transform.position + transform.rotation * (FaceToCubeCoords(Vector2.zero).normalized*rootDimensions/2)) < divDistance[MyLoD] * rootDimensions / 1000)
         {
             subdivide();
         }
@@ -106,7 +106,7 @@ public class TerrainController : MonoBehaviour
                 float y = (float)i/(resolution-1)*dimensions - dimensions/2;
                 int n = i * resolution + j;
                 Vector3 vertexPosition = FaceToCubeCoords(new Vector2(x, y));
-                float elevation = Perlin.Noise(vertexPosition*100);
+                float elevation = Perlin.Noise(vertexPosition*0.01f) + 0.5f*Perlin.Noise(vertexPosition * 0.1f);
                 vertices[n] = vertexPosition.normalized*rootDimensions/2*(1+elevation/100);
                 uvs[n] = new Vector2(elevation, 0.1f);
             }
@@ -315,6 +315,32 @@ public class TerrainController : MonoBehaviour
         return nbrQuads;
     }
 
+    void FixOuterSeams()
+    {
+        int nbrLoD = Neighbours[1].MyLoD;
+        int diff=0;
+        if (MyLoD >= Neighbours[1].MyLoD) {
+            diff = (int)Mathf.Pow(2,MyLoD - nbrLoD)+1; //Resolution should be 1 greater than a power of 2
+            print(diff);
+        }
+        else
+        {
+            Debug.LogWarning("WARNING: Trying to fix seams when LoD is less than that of neighbours");
+        }
+        Vector3 prevVert = vertices[0];
+        Mesh myMesh = transform.GetChild(0).GetComponent<MeshFilter>().mesh;
+        Vector3[] verts = myMesh.vertices;
+        for (int i = 0; i < resolution; i++)
+        {
+            if (i % diff != 0) {
+                verts[i] = prevVert;
+            }
+            prevVert = verts[i];
+        }
+        myMesh.vertices = verts;
+        
+    }
+
     TerrainController QuadsToTerrain(int[] quads)
     {
         Transform terrain=transform.root;
@@ -335,20 +361,21 @@ public class TerrainController : MonoBehaviour
         GameObject[] subTerrains = new GameObject[4];
         for (int i = 0; i < 4; i++)
         {
-            int[] childQuadrants = new int[myLoD + 2];
-            for (int j = 0; j <= myLoD; j++)
+            int[] childQuadrants = new int[MyLoD + 2];
+            for (int j = 0; j <= MyLoD; j++)
             {
                 childQuadrants[j] = MyQuadrants[j];
             }
-            childQuadrants[myLoD + 1] = i;
+            childQuadrants[MyLoD + 1] = i;
             subTerrains[i] = GameObject.Instantiate(terrainPrefab, transform.position, transform.rotation, transform);
-            subTerrains[i].GetComponent<TerrainController>().Initiate(myLoD + 1, childQuadrants);
+            subTerrains[i].GetComponent<TerrainController>().Initiate(MyLoD + 1, childQuadrants);
             subTerrains[i].transform.SetParent(transform);
         }
         meshRenderer.enabled = false;
         Neighbours = new TerrainController[8];
         Neighbours[1] = QuadsToTerrain(FindNeighbour(MyQuadrants, 1));
         Neighbours[3] = QuadsToTerrain(FindNeighbour(MyQuadrants, 3));
+        FixOuterSeams();
     }
 
     Vector3 FaceToCubeCoords(Vector2 faceCoords)

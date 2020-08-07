@@ -285,35 +285,201 @@ public class TerrainController : MonoBehaviour
                 break;
         }
 
+        int[,] borderIndices = FindBorderIndices(quads, dir);
         if (!isOnFaceBorder)
         {
-            if (quads[LoD] == safe1)
+            if (quads[LoD] == borderIndices[0, 0])
             {
                 Array.Copy(quads, nbrQuads, LoD + 1);
-                nbrQuads[LoD] = border1;
+                nbrQuads[LoD] = borderIndices[1, 0];
                 return nbrQuads;
             }
-            else if (quads[LoD] == safe2)
+            else if (quads[LoD] == borderIndices[0, 1])
             {
                 Array.Copy(quads, nbrQuads, LoD + 1);
-                nbrQuads[LoD] = border2;
+                nbrQuads[LoD] = borderIndices[1, 1];
                 return nbrQuads;
             }
         }
+        //If isOnFaceBorder then quad[LoD] can safely be assumed to be bordering, not safe
         int[] parentQuads = new int[LoD];
         Array.Copy(quads, parentQuads, LoD);
         int[] parentNbrQuads = FindNeighbour(parentQuads, dir);
         Array.Copy(parentNbrQuads, nbrQuads, LoD);
-        if (quads[LoD] == border1)
+        if (quads[LoD] == borderIndices[1, 0])
         {
-            nbrQuads[LoD] = safe1;
+            nbrQuads[LoD] = borderIndices[2, 0];
         }
-        else if (quads[LoD] == border2)
+        else if (quads[LoD] == borderIndices[1, 1])
         {
-            nbrQuads[LoD] = safe2;
+            nbrQuads[LoD] = borderIndices[2, 1];
         }
 
         return nbrQuads;
+    }
+
+    int[,] FindBorderIndices(int[] quads, int dir)
+    {
+        /*
+         * Indices[0,_] are away from the border
+         * Indices[1,_] are near the border
+         * Indices[2,_] are on the opposite side of the border. (Same as [0,_] if on the same face)
+         * 
+         * Botleft index is 0, botright 1, topleft 2, topright 3
+         * Directions are relative to the face. When border is the border of a face, Indices[2,_] may have a seemingly unusual value due to the face change.
+         * 
+         * Basic example when border direction is top and not the border of the face:
+         * 
+         *      ||||||||||||||||||||||
+         *      ||        ||        ||
+         *      ||        ||        ||
+         *      ||        ||        ||
+         *      ||||||||||||||||||||||
+         *      ||        ||        ||
+         *      || [2][0] || [2][1] ||
+         *      ||  =0    ||  =1    ||
+         *      ||||||||||||||||||||||
+         *      |||||||||||||||||||||| <-- Border
+         *      ||        ||        ||
+         *      || [1][0] || [1][1] ||
+         *      ||  =2    ||  =3    ||
+         *      ||||||||||||||||||||||
+         *      ||        ||        ||
+         *      || [0][0] || [0][1] ||
+         *      ||  =0    ||  =1    ||
+         *      ||||||||||||||||||||||
+         *      
+         */
+        int[,] indices = new int[3,2];
+        switch (dir)
+        {
+            case 0:
+                break;
+            case 1:
+                indices[0, 0] = 0;
+                indices[0, 1] = 1;
+                indices[1, 0] = 2;
+                indices[1, 1] = 3;
+                break;
+            case 2:
+                break;
+            case 3:
+                break;
+            case 4:
+                break;
+            case 5:
+                indices[0, 0] = 2;
+                indices[0, 1] = 3;
+                indices[1, 0] = 0;
+                indices[1, 1] = 1;
+                break;
+            case 6:
+                break;
+            case 7:
+                break;
+            default:
+                break;
+        }
+
+        bool isOnFaceBorder = true;
+        for(int i = 1; i < quads.Length; i++)
+        {
+            if(quads[i]!=indices[1,0] && quads[i] != indices[1,1])
+            {
+                isOnFaceBorder = false;
+                break;
+            }
+        }
+        int face = quads[0];
+        if (isOnFaceBorder)
+        {
+            switch (dir)
+            {
+                case 0:
+                    break;
+                case 1:
+                    switch (face)
+                    {
+                        case 0:
+                            indices[2, 0] = 0;
+                            indices[2, 1] = 1;
+                            break;
+                        case 1:
+                            indices[2, 0] = 1;
+                            indices[2, 1] = 3;
+                            break;
+                        case 2:
+                            indices[2, 0] = 3;
+                            indices[2, 1] = 2;
+                            break;
+                        case 3:
+                            indices[2, 0] = 2;
+                            indices[2, 1] = 0;
+                            break;
+                        case 4:
+                            indices[2, 0] = 3;
+                            indices[2, 1] = 2;
+                            break;
+                        case 5:
+                            indices[2, 0] = 0;
+                            indices[2, 1] = 1;
+                            break;
+                        default:
+                            Debug.LogWarning("ERROR: Invalid face");
+                            break;
+                    }
+                    break;
+                case 2:
+                    break;
+                case 3:
+                    break;
+                case 4:
+                    break;
+                case 5:
+                    switch (face)
+                    {
+                        case 0:
+                            indices[2, 0] = 2;
+                            indices[2, 1] = 3;
+                            break;
+                        case 1:
+                            indices[2, 0] = 3;
+                            indices[2, 1] = 1;
+                            break;
+                        case 2:
+                            indices[2, 0] = 1;
+                            indices[2, 1] = 0;
+                            break;
+                        case 3:
+                            indices[2, 0] = 0;
+                            indices[2, 1] = 2;
+                            break;
+                        case 4:
+                            indices[2, 0] = 2;
+                            indices[2, 1] = 3;
+                            break;
+                        case 5:
+                            indices[2, 0] = 1;
+                            indices[2, 1] = 0;
+                            break;
+                        default:
+                            break;
+                    }
+                    break;
+                case 6:
+                    break;
+                case 7:
+                    break;
+                default:
+                    break;
+            }
+        }
+        else
+        {
+            indices[2, 0] = indices[0, 0];
+            indices[2, 1] = indices[0, 1];
+        }
+        return indices;
     }
 
     void FixOuterSeams()
@@ -342,76 +508,46 @@ public class TerrainController : MonoBehaviour
                 safe[0] = 2; safe[1] = 3;
 
             }
-            Mesh myMesh = transform.GetChild(border[0]).GetComponent<MeshFilter>().mesh;
-            Mesh nbrMesh = Neighbours[nbrDir].GetComponent<MeshFilter>().mesh;
-            Vector3[] verts = myMesh.vertices;
-            Vector3[] norms = myMesh.normals;
-            Vector3[] nbrVerts = nbrMesh.vertices;
-            Vector3[] nbrNorms = nbrMesh.normals;
-            int prevIndex = 0;
-            for (int i = 0; i < resolution; i++)
+            for (int h = 0; h < 2; h++)
             {
-                int index = i + startIndex;
-                int nbrIndex = i / vertRatio + nbrStartIndex;
+                Mesh myMesh = transform.GetChild(border[h]).GetComponent<MeshFilter>().mesh;
+                Mesh nbrMesh = Neighbours[nbrDir].GetComponent<MeshFilter>().mesh;
+                Vector3[] verts = myMesh.vertices;
+                Vector3[] norms = myMesh.normals;
+                Vector3[] nbrVerts = nbrMesh.vertices;
+                Vector3[] nbrNorms = nbrMesh.normals;
+                int prevIndex = 0;
+                for (int i = 0; i < resolution; i++)
+                {
+                    int index = i + startIndex;
+                    int nbrIndex = i / vertRatio + nbrStartIndex;
+                    float nbrDims = rootDimensions / (Mathf.Pow(2, nbrLoD));
+                    float x = (float)(nbrIndex % 33) / (resolution - 1) * nbrDims - nbrDims / 2;
+                    float y = (float)(nbrIndex / resolution) / (resolution - 1) * nbrDims - nbrDims / 2;
+                    Vector3 vertexPosition = FaceToCubeCoords(new Vector2(x, y), Neighbours[nbrDir].MyQuadrants[0], Neighbours[nbrDir].CenterCoords);
+                    float elevation = Perlin.Noise(vertexPosition * 0.01f) + 0.5f * Perlin.Noise(vertexPosition * 0.1f);
+                    nbrVerts[nbrIndex] = vertexPosition.normalized * rootDimensions / 2 * (1 + elevation / 100);
+                    if (i % vertRatio != 0)
+                    {
+                        verts[index] = verts[prevIndex];
+                        norms[index] = norms[prevIndex];
+                    }
+                    prevIndex = index;
+                }
+                myMesh.vertices = verts;
+                myMesh.normals = norms;
+                nbrMesh.vertices = nbrVerts;
+                nbrMesh.normals = nbrNorms;
+
+                nbrStartIndex += resolution / 2; //Botmid vertex;
                 if (nbrDir == 5)
                 {
-                    nbrIndex = i + 1056;
-                }
-                float nbrDims = rootDimensions / (Mathf.Pow(2, nbrLoD));
-                float x = (float)(nbrIndex % 33) / (resolution - 1) * nbrDims - nbrDims / 2;
-                float y = (float)(nbrDir== 5 ? (resolution - 1):0) / (resolution - 1) * nbrDims - nbrDims / 2;
-                Vector3 vertexPosition = FaceToCubeCoords(new Vector2(x, y),Neighbours[nbrDir].MyQuadrants[0], Neighbours[nbrDir].CenterCoords);
-                float elevation = Perlin.Noise(vertexPosition * 0.01f) + 0.5f * Perlin.Noise(vertexPosition * 0.1f);
-                nbrVerts[nbrIndex] = vertexPosition.normalized * rootDimensions / 2 * (1 + elevation / 100);
-                if (i % vertRatio != 0)
-                {
-                    verts[index] = verts[prevIndex];
-                    norms[index] = norms[prevIndex];
-                }
-                prevIndex = index;
-            }
-            myMesh.vertices = verts;
-            myMesh.normals = norms;
-            nbrMesh.vertices = nbrVerts;
-            nbrMesh.normals = nbrNorms;
-            
-            nbrStartIndex = resolution/2; //Botmid vertex;
-            if (nbrDir == 5)
-            {
-                nbrStartIndex = resolution * (resolution - 1) + resolution / 2; //Topmid vertex;
-                border[0] = 0; border[1] = 1;
-                safe[0] = 2; safe[1] = 3;
+                    //nbrStartIndex = resolution * (resolution - 1) + resolution / 2; //Topmid vertex;
+                    border[0] = 0; border[1] = 1;
+                    safe[0] = 2; safe[1] = 3;
 
-            }
-            myMesh = transform.GetChild(border[1]).GetComponent<MeshFilter>().mesh;
-            nbrMesh = Neighbours[nbrDir].GetComponent<MeshFilter>().mesh;
-            verts = myMesh.vertices;
-            norms = myMesh.normals;
-            nbrVerts = nbrMesh.vertices;
-            nbrNorms = nbrMesh.normals;
-            prevIndex = 0;
-            for (int i = 0; i < resolution; i++)
-            {
-                int index = i + startIndex;
-                int nbrIndex = i / vertRatio + nbrStartIndex;
-
-                float nbrDims = rootDimensions / (Mathf.Pow(2, nbrLoD));
-                float x = (float)(nbrIndex % 33) / (resolution - 1) * nbrDims - nbrDims / 2;
-                float y = (float)(nbrDir == 5 ? (resolution - 1) : 0) / (resolution - 1) * nbrDims - nbrDims / 2;
-                Vector3 vertexPosition = FaceToCubeCoords(new Vector2(x, y), Neighbours[nbrDir].MyQuadrants[0], Neighbours[nbrDir].CenterCoords);
-                float elevation = Perlin.Noise(vertexPosition * 0.01f) + 0.5f * Perlin.Noise(vertexPosition * 0.1f);
-                nbrVerts[nbrIndex] = vertexPosition.normalized * rootDimensions / 2 * (1 + elevation / 100);
-                if (i % vertRatio != 0)
-                {
-                    verts[index] = verts[prevIndex];
-                    norms[index] = norms[prevIndex];
                 }
-                prevIndex = index;
             }
-            myMesh.vertices = verts;
-            myMesh.normals = norms;
-            nbrMesh.vertices = nbrVerts;
-            nbrMesh.normals = nbrNorms;
         }
         
     }

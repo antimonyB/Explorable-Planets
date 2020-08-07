@@ -209,6 +209,10 @@ public class TerrainController : MonoBehaviour
             case 2:
                 break;
             case 3:
+                break;
+            case 4:
+                break;
+            case 5:
                 if (LoD == 0)
                 {
                     switch (quads[0])
@@ -272,10 +276,6 @@ public class TerrainController : MonoBehaviour
                     }
                 }
                 break;
-            case 4:
-                break;
-            case 5:
-                break;
             case 6:
                 break;
             case 7:
@@ -318,7 +318,7 @@ public class TerrainController : MonoBehaviour
 
     void FixOuterSeams()
     {
-        for (int nbrDir = 1; nbrDir < 4; nbrDir += 2) //Loop through non diagonal neighbours, clockwise starting from top
+        for (int nbrDir = 1; nbrDir < 6; nbrDir += 4) //Loop through non diagonal neighbours, clockwise starting from top
         {
 
             int nbrLoD = Neighbours[nbrDir].MyLoD;
@@ -334,7 +334,7 @@ public class TerrainController : MonoBehaviour
             int nbrStartIndex = 0; //Botleft vertex;
             int[] border = { 2, 3 };
             int[] safe = { 0, 1 };
-            if (nbrDir == 3)
+            if (nbrDir == 5)
             {
                 startIndex = 0; //Botleft vertex;
                 nbrStartIndex = resolution * (resolution - 1); //Topleft vertex;
@@ -353,13 +353,13 @@ public class TerrainController : MonoBehaviour
             {
                 int index = i + startIndex;
                 int nbrIndex = i / vertRatio + nbrStartIndex;
-                if (nbrDir == 3)
+                if (nbrDir == 5)
                 {
                     nbrIndex = i + 1056;
                 }
                 float nbrDims = rootDimensions / (Mathf.Pow(2, nbrLoD));
                 float x = (float)(nbrIndex % 33) / (resolution - 1) * nbrDims - nbrDims / 2;
-                float y = (float)(nbrDir==3?(resolution - 1):0) / (resolution - 1) * nbrDims - nbrDims / 2;
+                float y = (float)(nbrDir== 5 ? (resolution - 1):0) / (resolution - 1) * nbrDims - nbrDims / 2;
                 Vector3 vertexPosition = FaceToCubeCoords(new Vector2(x, y),Neighbours[nbrDir].MyQuadrants[0], Neighbours[nbrDir].CenterCoords);
                 float elevation = Perlin.Noise(vertexPosition * 0.01f) + 0.5f * Perlin.Noise(vertexPosition * 0.1f);
                 nbrVerts[nbrIndex] = vertexPosition.normalized * rootDimensions / 2 * (1 + elevation / 100);
@@ -376,7 +376,7 @@ public class TerrainController : MonoBehaviour
             nbrMesh.normals = nbrNorms;
             
             nbrStartIndex = resolution/2; //Botmid vertex;
-            if (nbrDir == 3)
+            if (nbrDir == 5)
             {
                 nbrStartIndex = resolution * (resolution - 1) + resolution / 2; //Topmid vertex;
                 border[0] = 0; border[1] = 1;
@@ -397,7 +397,7 @@ public class TerrainController : MonoBehaviour
 
                 float nbrDims = rootDimensions / (Mathf.Pow(2, nbrLoD));
                 float x = (float)(nbrIndex % 33) / (resolution - 1) * nbrDims - nbrDims / 2;
-                float y = (float)(nbrDir == 3 ? (resolution - 1) : 0) / (resolution - 1) * nbrDims - nbrDims / 2;
+                float y = (float)(nbrDir == 5 ? (resolution - 1) : 0) / (resolution - 1) * nbrDims - nbrDims / 2;
                 Vector3 vertexPosition = FaceToCubeCoords(new Vector2(x, y), Neighbours[nbrDir].MyQuadrants[0], Neighbours[nbrDir].CenterCoords);
                 float elevation = Perlin.Noise(vertexPosition * 0.01f) + 0.5f * Perlin.Noise(vertexPosition * 0.1f);
                 nbrVerts[nbrIndex] = vertexPosition.normalized * rootDimensions / 2 * (1 + elevation / 100);
@@ -449,7 +449,7 @@ public class TerrainController : MonoBehaviour
         meshRenderer.enabled = false;
         Neighbours = new TerrainController[8];
         Neighbours[1] = QuadsToTerrain(FindNeighbour(MyQuadrants, 1));
-        Neighbours[3] = QuadsToTerrain(FindNeighbour(MyQuadrants, 3));
+        Neighbours[5] = QuadsToTerrain(FindNeighbour(MyQuadrants, 5));
         FixOuterSeams();
     }
 

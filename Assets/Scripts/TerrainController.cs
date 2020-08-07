@@ -36,6 +36,7 @@ public class TerrainController : MonoBehaviour
     [field:SerializeField]
     public int[] MyQuadrants { get; set; }
     public int MyLoD { get; set; }
+    public Vector2 CenterCoords { get => centerCoords; set => centerCoords = value; }
 
     // Start is called before the first frame update
     void Start()
@@ -317,27 +318,101 @@ public class TerrainController : MonoBehaviour
 
     void FixOuterSeams()
     {
-        int nbrLoD = Neighbours[1].MyLoD;
-        int diff=0;
-        if (MyLoD >= Neighbours[1].MyLoD) {
-            diff = (int)Mathf.Pow(2,MyLoD - nbrLoD)+1; //Resolution should be 1 greater than a power of 2
-            print(diff);
-        }
-        else
+        for (int nbrDir = 1; nbrDir < 4; nbrDir += 2) //Loop through non diagonal neighbours, clockwise starting from top
         {
-            Debug.LogWarning("WARNING: Trying to fix seams when LoD is less than that of neighbours");
-        }
-        Vector3 prevVert = vertices[0];
-        Mesh myMesh = transform.GetChild(0).GetComponent<MeshFilter>().mesh;
-        Vector3[] verts = myMesh.vertices;
-        for (int i = 0; i < resolution; i++)
-        {
-            if (i % diff != 0) {
-                verts[i] = prevVert;
+
+            int nbrLoD = Neighbours[nbrDir].MyLoD;
+            int vertRatio=0;
+            if (MyLoD >= nbrLoD) {
+                vertRatio = (int)Mathf.Pow(2,MyLoD - nbrLoD)+1; //Resolution should be 1 greater than a power of 2
             }
-            prevVert = verts[i];
+            else
+            {
+                Debug.LogWarning("WARNING: Trying to fix seams when LoD is less than that of neighbours");
+            }
+            int startIndex = resolution * (resolution - 1); //Topleft vertex;
+            int nbrStartIndex = 0; //Botleft vertex;
+            int[] border = { 2, 3 };
+            int[] safe = { 0, 1 };
+            if (nbrDir == 3)
+            {
+                startIndex = 0; //Botleft vertex;
+                nbrStartIndex = resolution * (resolution - 1); //Topleft vertex;
+                border[0] = 0; border[1] = 1;
+                safe[0] = 2; safe[1] = 3;
+
+            }
+            Mesh myMesh = transform.GetChild(border[0]).GetComponent<MeshFilter>().mesh;
+            Mesh nbrMesh = Neighbours[nbrDir].GetComponent<MeshFilter>().mesh;
+            Vector3[] verts = myMesh.vertices;
+            Vector3[] norms = myMesh.normals;
+            Vector3[] nbrVerts = nbrMesh.vertices;
+            Vector3[] nbrNorms = nbrMesh.normals;
+            int prevIndex = 0;
+            for (int i = 0; i < resolution; i++)
+            {
+                int index = i + startIndex;
+                int nbrIndex = i / vertRatio + nbrStartIndex;
+                if (nbrDir == 3)
+                {
+                    nbrIndex = i + 1056;
+                }
+                float nbrDims = rootDimensions / (Mathf.Pow(2, nbrLoD));
+                float x = (float)(nbrIndex % 33) / (resolution - 1) * nbrDims - nbrDims / 2;
+                float y = (float)(nbrDir==3?(resolution - 1):0) / (resolution - 1) * nbrDims - nbrDims / 2;
+                Vector3 vertexPosition = FaceToCubeCoords(new Vector2(x, y),Neighbours[nbrDir].MyQuadrants[0], Neighbours[nbrDir].CenterCoords);
+                float elevation = Perlin.Noise(vertexPosition * 0.01f) + 0.5f * Perlin.Noise(vertexPosition * 0.1f);
+                nbrVerts[nbrIndex] = vertexPosition.normalized * rootDimensions / 2 * (1 + elevation / 100);
+                if (i % vertRatio != 0)
+                {
+                    verts[index] = verts[prevIndex];
+                    norms[index] = norms[prevIndex];
+                }
+                prevIndex = index;
+            }
+            myMesh.vertices = verts;
+            myMesh.normals = norms;
+            nbrMesh.vertices = nbrVerts;
+            nbrMesh.normals = nbrNorms;
+            
+            nbrStartIndex = resolution/2; //Botmid vertex;
+            if (nbrDir == 3)
+            {
+                nbrStartIndex = resolution * (resolution - 1) + resolution / 2; //Topmid vertex;
+                border[0] = 0; border[1] = 1;
+                safe[0] = 2; safe[1] = 3;
+
+            }
+            myMesh = transform.GetChild(border[1]).GetComponent<MeshFilter>().mesh;
+            nbrMesh = Neighbours[nbrDir].GetComponent<MeshFilter>().mesh;
+            verts = myMesh.vertices;
+            norms = myMesh.normals;
+            nbrVerts = nbrMesh.vertices;
+            nbrNorms = nbrMesh.normals;
+            prevIndex = 0;
+            for (int i = 0; i < resolution; i++)
+            {
+                int index = i + startIndex;
+                int nbrIndex = i / vertRatio + nbrStartIndex;
+
+                float nbrDims = rootDimensions / (Mathf.Pow(2, nbrLoD));
+                float x = (float)(nbrIndex % 33) / (resolution - 1) * nbrDims - nbrDims / 2;
+                float y = (float)(nbrDir == 3 ? (resolution - 1) : 0) / (resolution - 1) * nbrDims - nbrDims / 2;
+                Vector3 vertexPosition = FaceToCubeCoords(new Vector2(x, y), Neighbours[nbrDir].MyQuadrants[0], Neighbours[nbrDir].CenterCoords);
+                float elevation = Perlin.Noise(vertexPosition * 0.01f) + 0.5f * Perlin.Noise(vertexPosition * 0.1f);
+                nbrVerts[nbrIndex] = vertexPosition.normalized * rootDimensions / 2 * (1 + elevation / 100);
+                if (i % vertRatio != 0)
+                {
+                    verts[index] = verts[prevIndex];
+                    norms[index] = norms[prevIndex];
+                }
+                prevIndex = index;
+            }
+            myMesh.vertices = verts;
+            myMesh.normals = norms;
+            nbrMesh.vertices = nbrVerts;
+            nbrMesh.normals = nbrNorms;
         }
-        myMesh.vertices = verts;
         
     }
 
@@ -378,35 +453,39 @@ public class TerrainController : MonoBehaviour
         FixOuterSeams();
     }
 
-    Vector3 FaceToCubeCoords(Vector2 faceCoords)
+    Vector3 FaceToCubeCoords(Vector2 faceCoords, int face, Vector2 centerCoords)
     {
         Vector3 cubeCoords=Vector3.zero;
         float x = faceCoords.x + centerCoords.x;
         float y = faceCoords.y + centerCoords.y;
-        if (myFace == 0)
+        if (face == 0)
         {
             cubeCoords = new Vector3(x, y, -rootDimensions / 2);
         }
-        if (myFace == 1)
+        if (face == 1)
         {
             cubeCoords = new Vector3(rootDimensions / 2, y, x);
         }
-        if (myFace == 2)
+        if (face == 2)
         {
             cubeCoords = new Vector3(-x, y, rootDimensions / 2);
         }
-        if (myFace == 3)
+        if (face == 3)
         {
             cubeCoords = new Vector3(-rootDimensions / 2, y, -(x));
         }
-        if (myFace == 4)
+        if (face == 4)
         {
             cubeCoords = new Vector3(x, rootDimensions / 2, y);
         }
-        if (myFace == 5)
+        if (face == 5)
         {
             cubeCoords = new Vector3(x, -rootDimensions / 2, -(y));
         }
         return cubeCoords;
+    }
+    Vector3 FaceToCubeCoords(Vector2 faceCoords)
+    {
+        return FaceToCubeCoords(faceCoords, myFace, this.centerCoords);
     }
 }

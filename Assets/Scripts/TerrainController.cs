@@ -70,7 +70,7 @@ public class TerrainController : MonoBehaviour
                 centerCoords.x += rootDimensions / Mathf.Pow(2, i) / 2;
         }
         
-        generateMesh();
+        GenerateMesh();
         if (LoD == 0)
         {
             //subdivide(1);
@@ -92,7 +92,7 @@ public class TerrainController : MonoBehaviour
         }
     }
 
-    void generateMesh()
+    void GenerateMesh()
     {
         //Generate vertices
         mesh = GetComponent<MeshFilter>().mesh = new Mesh();
@@ -125,26 +125,20 @@ public class TerrainController : MonoBehaviour
         }
         mesh.triangles = triangles;
         mesh.RecalculateNormals();
+        mesh.RecalculateBounds();
     }
 
     int[] FindNeighbour(int[] quads, int dir)
     {
         int LoD = quads.Length - 1;
         int[] nbrQuads = new int[LoD + 1];
-        //Quadrants on the same side as the direction being searched
-        int border1=0, border2=0;
-        //Quadrants on the opposite side of the direction being searched. Finding their neighbours is simple and safe.
-        int safe1=0, safe2=0;
 
-        bool isOnFaceBorder = true;
-
-        switch (dir)
-        {
-            case 0:
-                break;
-            case 1:
-                if (LoD == 0)
-                {
+        if(LoD==0){
+            switch (dir)
+            {
+                case 0:
+                    break;
+                case 1:
                     switch (quads[0])
                     {
                         case 0:
@@ -162,59 +156,31 @@ public class TerrainController : MonoBehaviour
                         default:
                             break;
                     }
-                }
-                border1 = 2;
-                border2 = 3;
-                safe1 = 0;
-                safe2 = 1;
-
-                for(int i = 1; i <= LoD; i++)
-                {
-                    if(quads[i]==safe1 || quads[i] == safe2)
-                    {
-                        isOnFaceBorder = false;
-                        break;
-                    }
-                }
-                if(isOnFaceBorder)
-                {
+                    break;
+                case 2:
+                    break;
+                case 3:
                     switch (quads[0])
                     {
                         case 0:
-                            break;
+                            return new int[] { 1 };
                         case 1:
-                            safe1 = 1;
-                            safe2 = 3;
-                            break;
+                            return new int[] { 2 };
                         case 2:
-                            safe1 = 3;
-                            safe2 = 2;
-                            break;
+                            return new int[] { 3 };
                         case 3:
-                            safe1 = 2;
-                            safe2 = 0;
-                            break;
+                            return new int[] { 0 };
                         case 4:
-                            safe1 = 3;
-                            safe2 = 2;
-                            break;
+                            return new int[] { 1 };
                         case 5:
-                            break;
+                            return new int[] { 1 };
                         default:
-                            Debug.LogWarning("ERROR: Invalid face");
                             break;
                     }
-                }
-                break;
-            case 2:
-                break;
-            case 3:
-                break;
-            case 4:
-                break;
-            case 5:
-                if (LoD == 0)
-                {
+                    break;
+                case 4:
+                    break;
+                case 5:
                     switch (quads[0])
                     {
                         case 0:
@@ -232,60 +198,46 @@ public class TerrainController : MonoBehaviour
                         default:
                             break;
                     }
-                }
-                border1 = 0;
-                border2 = 1;
-                safe1 = 2;
-                safe2 = 3;
-
-                for (int i = 1; i <= LoD; i++)
-                {
-                    if (quads[i] == safe1 || quads[i] == safe2)
-                    {
-                        isOnFaceBorder = false;
-                        break;
-                    }
-                }
-                if (isOnFaceBorder)
-                {
+                    break;
+                case 6:
+                    break;
+                case 7:
                     switch (quads[0])
                     {
                         case 0:
-                            break;
+                            return new int[] { 3 };
                         case 1:
-                            safe1 = 3;
-                            safe2 = 1;
-                            break;
+                            return new int[] { 0 };
                         case 2:
-                            safe1 = 1;
-                            safe2 = 0;
-                            break;
+                            return new int[] { 1 };
                         case 3:
-                            safe1 = 0;
-                            safe2 = 2;
-                            break;
+                            return new int[] { 2 };
                         case 4:
-                            break;
+                            return new int[] { 3 };
                         case 5:
-                            safe1 = 1;
-                            safe2 = 0;
-                            break;
+                            return new int[] { 3 };
                         default:
-                            Debug.LogWarning("ERROR: Invalid face");
                             break;
                     }
-                }
-                break;
-            case 6:
-                break;
-            case 7:
-                break;
-            default:
-                Debug.LogWarning("ERROR: Invalid direction");
-                break;
+                    break;
+                default:
+                    Debug.LogWarning("ERROR: Invalid direction");
+                    break;
+            }
         }
 
         int[,] borderIndices = FindBorderIndices(quads, dir);
+        
+        bool isOnFaceBorder = true;
+        for(int i = 1; i < quads.Length; i++)
+        {
+            if(quads[i]!=borderIndices[1,0] && quads[i] != borderIndices[1,1])
+            {
+                isOnFaceBorder = false;
+                break;
+            }
+        }
+
         if (!isOnFaceBorder)
         {
             if (quads[LoD] == borderIndices[0, 0])
@@ -364,6 +316,10 @@ public class TerrainController : MonoBehaviour
             case 2:
                 break;
             case 3:
+                indices[0, 0] = 0;
+                indices[0, 1] = 2;
+                indices[1, 0] = 1;
+                indices[1, 1] = 3;
                 break;
             case 4:
                 break;
@@ -376,6 +332,10 @@ public class TerrainController : MonoBehaviour
             case 6:
                 break;
             case 7:
+                indices[0, 0] = 1;
+                indices[0, 1] = 3;
+                indices[1, 0] = 0;
+                indices[1, 1] = 2;
                 break;
             default:
                 break;
@@ -432,6 +392,36 @@ public class TerrainController : MonoBehaviour
                 case 2:
                     break;
                 case 3:
+                    switch (face)
+                    {
+                        case 0:
+                            indices[2, 0] = 0;
+                            indices[2, 1] = 2;
+                            break;
+                        case 1:
+                            indices[2, 0] = 0;
+                            indices[2, 1] = 2;
+                            break;
+                        case 2:
+                            indices[2, 0] = 0;
+                            indices[2, 1] = 2;
+                            break;
+                        case 3:
+                            indices[2, 0] = 0;
+                            indices[2, 1] = 2;
+                            break;
+                        case 4:
+                            indices[2, 0] = 2;
+                            indices[2, 1] = 3;
+                            break;
+                        case 5:
+                            indices[2, 0] = 1;
+                            indices[2, 1] = 0;
+                            break;
+                        default:
+                            Debug.LogWarning("ERROR: Invalid face");
+                            break;
+                    }
                     break;
                 case 4:
                     break;
@@ -469,6 +459,36 @@ public class TerrainController : MonoBehaviour
                 case 6:
                     break;
                 case 7:
+                    switch (face)
+                    {
+                        case 0:
+                            indices[2, 0] = 1;
+                            indices[2, 1] = 3;
+                            break;
+                        case 1:
+                            indices[2, 0] = 1;
+                            indices[2, 1] = 3;
+                            break;
+                        case 2:
+                            indices[2, 0] = 1;
+                            indices[2, 1] = 3;
+                            break;
+                        case 3:
+                            indices[2, 0] = 1;
+                            indices[2, 1] = 3;
+                            break;
+                        case 4:
+                            indices[2, 0] = 3;
+                            indices[2, 1] = 2;
+                            break;
+                        case 5:
+                            indices[2, 0] = 0;
+                            indices[2, 1] = 1;
+                            break;
+                        default:
+                            Debug.LogWarning("ERROR: Invalid face");
+                            break;
+                    }
                     break;
                 default:
                     break;
@@ -482,74 +502,269 @@ public class TerrainController : MonoBehaviour
         return indices;
     }
 
-    void FixOuterSeams()
+    public void FixOuterSeam(int nbrDir)
     {
-        for (int nbrDir = 1; nbrDir < 6; nbrDir += 4) //Loop through non diagonal neighbours, clockwise starting from top
+        int nbrLoD = Neighbours[nbrDir].MyLoD;
+        int dtl=MyLoD+1;
+        int nbrDtl=nbrLoD;
+        if(Neighbours[nbrDir].transform.childCount > 1){
+            nbrDtl++;
+        }
+        int vertRatio=0;
+        bool isEqualDtl = false;
+        if (MyLoD >= nbrLoD) {
+            vertRatio = (int)Mathf.Pow(2,dtl - nbrDtl); //Resolution should be 1 greater than a power of 2
+        }
+        else
         {
+            Debug.LogWarning("WARNING: Trying to fix seams when LoD is different than that of neighbour");
+        }
+        if(dtl==nbrDtl){
+            isEqualDtl = true;
+        }
+        int startIndex = resolution * (resolution - 1); //Topleft vertex
+        int nbrStartIndex = 0; //Botleft vertex;
+        int[,] borderIndices=FindBorderIndices(MyQuadrants,nbrDir);
+        int vertDir = borderIndices[1,1] - borderIndices[1,0];
+        int nbrVertDir = borderIndices[2,1] - borderIndices[2,0];
+        switch(borderIndices[1,0]){
+            case 0:
+                startIndex = 0; //Botleft vertex
+                break;
+            case 1:
+                startIndex = resolution - 1; //Botright vertex
+                break;
+            case 2:
+                startIndex = resolution * (resolution - 1); //Topleft vertex
+                break;
+            case 3:
+                startIndex = resolution * resolution - 1; //Topright vertex
+                break;
+            default:
+                Debug.LogWarning("ERROR: Unhandled direction");
+                break;
+        }
+        switch(borderIndices[2,0]){
+            case 0:
+                nbrStartIndex = 0; //Botleft vertex
+                break;
+            case 1:
+                nbrStartIndex = resolution - 1; //Botright vertex
+                break;
+            case 2:
+                nbrStartIndex = resolution * (resolution - 1); //Topleft vertex
+                break;
+            case 3:
+                nbrStartIndex = resolution * resolution - 1; //Topright vertex
+                break;
+            default:
+                Debug.LogWarning("ERROR: Unhandled neighbour direction");
+                break;
+        }
+        int step = 0;
+        switch(vertDir){
+            case 1:
+                step = 1;
+                break;
+            case -1:
+                step = -1;
+                break;
+            case 2:
+                step = resolution;
+                break;
+            case -2:
+                step = -resolution;
+                break;
+            default:
+                Debug.LogWarning("ERROR: Invalid vertex direction");
+                break;
+        }
+        int nbrStep = 0;
+        switch(nbrVertDir){
+            case 1:
+                nbrStep = 1;
+                break;
+            case -1:
+                nbrStep = -1;
+                break;
+            case 2:
+                nbrStep = resolution;
+                break;
+            case -2:
+                nbrStep = -resolution;
+                break;
+            default:
+                Debug.LogWarning("ERROR: Invalid vertex direction");
+                break;
+        }
+        for (int h = 0; h < 2; h++)
+        {
+            Mesh myMesh = transform.GetChild(borderIndices[1,h]).GetComponent<MeshFilter>().mesh;
+            TerrainController nbr;
+            if(isEqualDtl){ //Neighbour may actually be more detailed, but that depends on its children
+                //Operate on the correct half of the neighbour
+                nbr = Neighbours[nbrDir].transform.GetChild(borderIndices[2,h]).GetComponent<TerrainController>();
+                
+                //If current half of neighbour is more detailed, then tell this half of neighbour to fix the seams from its perspective
+                if(nbr.transform.childCount > 0){
+                    bool isOnFaceBorder = true;
+                    for(int i = 1; i < MyQuadrants.Length; i++)
+                    {
+                        if(MyQuadrants[i] != borderIndices[1,0] && MyQuadrants[i] != borderIndices[1,1])
+                        {
+                            isOnFaceBorder = false;
+                            break;
+                        }
+                    }
+                    int dirFromNbr = (nbrDir+4) % 8;
+                    if(isOnFaceBorder){ //Handle unusual cases that happen when neighbour is on a different face
+                        if((borderIndices[2,0]==2 || borderIndices[2,1]==2) && (borderIndices[2,0]==3 || borderIndices[2,1]==3)){
+                            dirFromNbr = 1;
+                        }
+                        else if((borderIndices[2,0]==1 || borderIndices[2,1]==1) && (borderIndices[2,0]==3 || borderIndices[2,1]==3)){
+                            dirFromNbr = 3;
+                        }
+                        else if((borderIndices[2,0]==0 || borderIndices[2,1]==0) && (borderIndices[2,0]==1 || borderIndices[2,1]==1)){
+                            dirFromNbr = 5;
+                        }
+                        else if((borderIndices[2,0]==0 || borderIndices[2,1]==0) && (borderIndices[2,0]==2 || borderIndices[2,1]==2)){
+                            dirFromNbr = 7;
+                        }
+                    }
+                    FixOppositeSide(nbr, dirFromNbr, borderIndices);
+                }
+            }
+            else{
+                //Since the neighbour is less detailed, it is not split into halves. Operate on the entire neighbour section the whole way through.
+                nbr = Neighbours[nbrDir];
+            }
+            Mesh nbrMesh = nbr.GetComponent<MeshFilter>().mesh;
+            Vector3[] verts = myMesh.vertices;
+            Vector3[] norms = myMesh.normals;
+            Vector2[] uvs = myMesh.uv;
+            Vector3[] nbrVerts = nbrMesh.vertices;
+            Vector3[] nbrNorms = nbrMesh.normals;
+            Vector2[] nbrUvs = nbrMesh.uv;
+            int prevIndex = 0;
+            int prevNbrIndex = -1;
+            for (int i = 0; i < resolution; i++)
+            {
+                int index = i * step + startIndex;
+                int nbrIndex = i / vertRatio * nbrStep + nbrStartIndex;
 
-            int nbrLoD = Neighbours[nbrDir].MyLoD;
-            int vertRatio=0;
-            if (MyLoD >= nbrLoD) {
-                vertRatio = (int)Mathf.Pow(2,MyLoD - nbrLoD)+1; //Resolution should be 1 greater than a power of 2
-            }
-            else
-            {
-                Debug.LogWarning("WARNING: Trying to fix seams when LoD is less than that of neighbours");
-            }
-            int startIndex = resolution * (resolution - 1); //Topleft vertex;
-            int nbrStartIndex = 0; //Botleft vertex;
-            int[] border = { 2, 3 };
-            int[] safe = { 0, 1 };
-            if (nbrDir == 5)
-            {
-                startIndex = 0; //Botleft vertex;
-                nbrStartIndex = resolution * (resolution - 1); //Topleft vertex;
-                border[0] = 0; border[1] = 1;
-                safe[0] = 2; safe[1] = 3;
-
-            }
-            for (int h = 0; h < 2; h++)
-            {
-                Mesh myMesh = transform.GetChild(border[h]).GetComponent<MeshFilter>().mesh;
-                Mesh nbrMesh = Neighbours[nbrDir].GetComponent<MeshFilter>().mesh;
-                Vector3[] verts = myMesh.vertices;
-                Vector3[] norms = myMesh.normals;
-                Vector3[] nbrVerts = nbrMesh.vertices;
-                Vector3[] nbrNorms = nbrMesh.normals;
-                int prevIndex = 0;
-                for (int i = 0; i < resolution; i++)
-                {
-                    int index = i + startIndex;
-                    int nbrIndex = i / vertRatio + nbrStartIndex;
-                    float nbrDims = rootDimensions / (Mathf.Pow(2, nbrLoD));
-                    float x = (float)(nbrIndex % 33) / (resolution - 1) * nbrDims - nbrDims / 2;
+                //Regenerate current vertex of neighbour's edge in case it was hidden
+                if(nbrIndex != prevNbrIndex){
+                    float nbrDims = rootDimensions / (Mathf.Pow(2, nbrDtl));
+                    float x = (float)(nbrIndex % resolution) / (resolution - 1) * nbrDims - nbrDims / 2;
                     float y = (float)(nbrIndex / resolution) / (resolution - 1) * nbrDims - nbrDims / 2;
-                    Vector3 vertexPosition = FaceToCubeCoords(new Vector2(x, y), Neighbours[nbrDir].MyQuadrants[0], Neighbours[nbrDir].CenterCoords);
+                    Vector3 vertexPosition = FaceToCubeCoords(new Vector2(x, y), nbr.MyQuadrants[0], nbr.CenterCoords);
                     float elevation = Perlin.Noise(vertexPosition * 0.01f) + 0.5f * Perlin.Noise(vertexPosition * 0.1f);
                     nbrVerts[nbrIndex] = vertexPosition.normalized * rootDimensions / 2 * (1 + elevation / 100);
-                    if (i % vertRatio != 0)
-                    {
-                        verts[index] = verts[prevIndex];
-                        norms[index] = norms[prevIndex];
-                    }
-                    prevIndex = index;
+                    nbrUvs[nbrIndex] = new Vector2(elevation, 0.1f);
                 }
-                myMesh.vertices = verts;
-                myMesh.normals = norms;
-                nbrMesh.vertices = nbrVerts;
-                nbrMesh.normals = nbrNorms;
 
-                nbrStartIndex += resolution / 2; //Botmid vertex;
-                if (nbrDir == 5)
+                if (i % vertRatio != 0) //If neighbour has no corresponding vertex
                 {
-                    //nbrStartIndex = resolution * (resolution - 1) + resolution / 2; //Topmid vertex;
-                    border[0] = 0; border[1] = 1;
-                    safe[0] = 2; safe[1] = 3;
-
+                    //Hide current vertex
+                    verts[index] = verts[prevIndex];
+                    norms[index] = norms[prevIndex];
+                    uvs[index] = uvs[prevIndex];
                 }
+                else{
+                    //Regenerate current vertex in case it has been hidden before
+                    float dims = rootDimensions / (Mathf.Pow(2, dtl));
+                    float x = (float)(index % resolution) / (resolution - 1) * dims - dims / 2;
+                    float y = (float)(index / resolution) / (resolution - 1) * dims - dims / 2;
+                    Vector3 vertexPosition = FaceToCubeCoords(new Vector2(x, y), MyQuadrants[0], transform.GetChild(borderIndices[1,h]).GetComponent<TerrainController>().CenterCoords);
+                    float elevation = Perlin.Noise(vertexPosition * 0.01f) + 0.5f * Perlin.Noise(vertexPosition * 0.1f);
+                    verts[index] = vertexPosition.normalized * rootDimensions / 2 * (1 + elevation / 100);
+                    uvs[index] = new Vector2(elevation, 0.1f);
+
+                    //Fix normal for current vertex and neighbours' corresponding vertices
+                    Vector3 normal = EstimateNormal(index, transform.GetChild(borderIndices[1,h]).GetComponent<TerrainController>().MyQuadrants);
+                    norms[index] = normal;
+                    nbrNorms[nbrIndex] = normal;
+                }
+
+                prevIndex = index;
+                prevNbrIndex = nbrIndex;
+            }
+            myMesh.vertices = verts;
+            myMesh.normals = norms;
+            myMesh.uv = uvs;
+            nbrMesh.vertices = nbrVerts;
+            nbrMesh.normals = nbrNorms;
+            nbrMesh.uv = nbrUvs;
+
+            //If neighbour is less detailed, start next iteration further along the same neighbour's edge
+            if(!isEqualDtl)
+            {
+                nbrStartIndex += nbrStep * (resolution / vertRatio);
             }
         }
+    }
+
+    void FixInnerSeams()
+    {
+        Mesh[] subMeshes = new Mesh[4];
+        for(int i = 0; i < 4; i++)
+        {
+            subMeshes[i] = transform.GetChild(i).GetComponent<MeshFilter>().mesh;
+        }
+        int[] subMeshIndices = {0, 0, 3, 3};
+        int[] otherSubMeshIndices = {1, 2, 1, 2};
+        int[] startIndices = {resolution - 1, resolution * (resolution - 1), 0, 0};
+        int[] otherStartIndices = {0, 0, resolution * (resolution - 1), resolution - 1};
+        int[] steps = {resolution, 1, 1, resolution};
+        for(int i = 0; i < 4; i++)
+        {
+            Mesh subMesh = subMeshes[subMeshIndices[i]];
+            Mesh otherSubMesh = subMeshes[otherSubMeshIndices[i]];
+            int startIndex = startIndices[i];
+            int otherStartIndex = otherStartIndices[i];
+            int step = steps[i];
+            Vector3[] norms = subMesh.normals;
+            Vector3[] otherNorms = otherSubMesh.normals;
+            for(int j = 1; j < resolution - 1; j++)
+            {
+                int index = startIndex + (j * step);
+                int otherIndex = otherStartIndex + (j * step);
+
+                float dims = rootDimensions / (Mathf.Pow(2, MyLoD+1));
+                float x = (float)(index % resolution) / (resolution - 1) * dims - dims / 2;
+                float y = (float)(index / resolution) / (resolution - 1) * dims - dims / 2;
+                Vector3 vertexPosition = FaceToCubeCoords(new Vector2(x, y), MyQuadrants[0], transform.GetChild(subMeshIndices[i]).GetComponent<TerrainController>().CenterCoords);
+
+                Vector3 normal = EstimateNormal(index, transform.GetChild(subMeshIndices[i]).GetComponent<TerrainController>().MyQuadrants);
+                norms[index] = normal;
+                otherNorms[otherIndex] = normal;
+            }
+            subMesh.normals = norms;
+            otherSubMesh.normals = otherNorms;
+        }
+    }
+
+    void FixOppositeSide(TerrainController nbr, int dirFromNbr, int[,] borderIndices)
+    {
+        for(int i = 0; i < 2; i++){
+            if(nbr.transform.GetChild(borderIndices[2,i]).childCount > 1){
+                FixOppositeSide(nbr.transform.GetChild(borderIndices[2,i]).GetComponent<TerrainController>(), dirFromNbr, borderIndices);
+            }
+        }
+        TerrainController[] temp = new TerrainController[8];
+        temp[dirFromNbr] = QuadsToTerrain(nbr.FindNeighbour(nbr.MyQuadrants, dirFromNbr));
+        nbr.Neighbours = temp;
+        nbr.FixOuterSeam(dirFromNbr);
+    }
+
+    Vector3 EstimateNormal(int index, int[] quads)
+    {
+        float dims = rootDimensions / (Mathf.Pow(2, quads.Length-1));
+        float x = (float)(index % resolution) / (resolution - 1) * dims - dims / 2;
+        float y = (float)(index / resolution) / (resolution - 1) * dims - dims / 2;
+        Vector3 vertexPosition = FaceToCubeCoords(new Vector2(x, y), quads[0], QuadsToTerrain(quads).CenterCoords);
         
+        return vertexPosition.normalized;
     }
 
     TerrainController QuadsToTerrain(int[] quads)
@@ -557,7 +772,11 @@ public class TerrainController : MonoBehaviour
         Transform terrain=transform.root;
         for(int i = 0; i<quads.Length; i++)
         {
-            terrain = terrain.GetChild(quads[i]);
+            if(terrain.childCount>0){
+                terrain = terrain.GetChild(quads[i]);
+            }else{
+                return terrain.GetComponent<TerrainController>();
+            }
         }
         return terrain.GetComponent<TerrainController>();
     }
@@ -585,8 +804,14 @@ public class TerrainController : MonoBehaviour
         meshRenderer.enabled = false;
         Neighbours = new TerrainController[8];
         Neighbours[1] = QuadsToTerrain(FindNeighbour(MyQuadrants, 1));
+        Neighbours[3] = QuadsToTerrain(FindNeighbour(MyQuadrants, 3));
         Neighbours[5] = QuadsToTerrain(FindNeighbour(MyQuadrants, 5));
-        FixOuterSeams();
+        Neighbours[7] = QuadsToTerrain(FindNeighbour(MyQuadrants, 7));
+        for (int nbrDir = 1; nbrDir < 8; nbrDir += 2) //Loop through non diagonal neighbours, clockwise starting from top
+        {
+            FixOuterSeam(nbrDir);
+        }
+        FixInnerSeams();
     }
 
     Vector3 FaceToCubeCoords(Vector2 faceCoords, int face, Vector2 centerCoords)

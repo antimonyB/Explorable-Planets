@@ -103,12 +103,10 @@ public class TerrainController : MonoBehaviour
         {
             for (int j = 0; j < resolution; j++)
             {
-                float x = (float)j/(resolution-1)*dimensions - dimensions/2;
-                float y = (float)i/(resolution-1)*dimensions - dimensions/2;
                 int n = i * resolution + j;
-                Vector3 vertexPosition = FaceToCubeCoords(new Vector2(x, y));
-                float elevation = Perlin.Noise(vertexPosition*0.01f) + 0.5f*Perlin.Noise(vertexPosition * 0.1f);
-                vertices[n] = vertexPosition.normalized*rootDimensions/2*(1+elevation/100);
+                Vector3 vertexPosition = LocateCubeVertex(n, MyQuadrants);
+                float elevation = GenerateElevation(vertexPosition);
+                vertices[n] = ApplyElevation(vertexPosition, elevation);
                 uvs[n] = new Vector2(elevation, 0.1f);
             }
         }
@@ -654,12 +652,9 @@ public class TerrainController : MonoBehaviour
 
                 //Regenerate current vertex of neighbour's edge in case it was hidden
                 if(nbrIndex != prevNbrIndex){
-                    float nbrDims = rootDimensions / (Mathf.Pow(2, nbrDtl));
-                    float x = (float)(nbrIndex % resolution) / (resolution - 1) * nbrDims - nbrDims / 2;
-                    float y = (float)(nbrIndex / resolution) / (resolution - 1) * nbrDims - nbrDims / 2;
-                    Vector3 vertexPosition = FaceToCubeCoords(new Vector2(x, y), nbr.MyQuadrants[0], nbr.CenterCoords);
-                    float elevation = Perlin.Noise(vertexPosition * 0.01f) + 0.5f * Perlin.Noise(vertexPosition * 0.1f);
-                    nbrVerts[nbrIndex] = vertexPosition.normalized * rootDimensions / 2 * (1 + elevation / 100);
+                    Vector3 vertexPosition = LocateCubeVertex(nbrIndex, nbr.MyQuadrants);
+                    float elevation = GenerateElevation(vertexPosition);
+                    nbrVerts[nbrIndex] = ApplyElevation(vertexPosition, elevation);
                     nbrUvs[nbrIndex] = new Vector2(elevation, 0.1f);
                 }
 
@@ -672,12 +667,10 @@ public class TerrainController : MonoBehaviour
                 }
                 else{
                     //Regenerate current vertex in case it has been hidden before
-                    float dims = rootDimensions / (Mathf.Pow(2, dtl));
-                    float x = (float)(index % resolution) / (resolution - 1) * dims - dims / 2;
-                    float y = (float)(index / resolution) / (resolution - 1) * dims - dims / 2;
-                    Vector3 vertexPosition = FaceToCubeCoords(new Vector2(x, y), MyQuadrants[0], transform.GetChild(borderIndices[1,h]).GetComponent<TerrainController>().CenterCoords);
-                    float elevation = Perlin.Noise(vertexPosition * 0.01f) + 0.5f * Perlin.Noise(vertexPosition * 0.1f);
-                    verts[index] = vertexPosition.normalized * rootDimensions / 2 * (1 + elevation / 100);
+                    TerrainController subTerrain = transform.GetChild(borderIndices[1, h]).GetComponent<TerrainController>();
+                    Vector3 vertexPosition = LocateCubeVertex(index, subTerrain.MyQuadrants);
+                    float elevation = GenerateElevation(vertexPosition);
+                    verts[index] = ApplyElevation(vertexPosition, elevation);
                     uvs[index] = new Vector2(elevation, 0.1f);
 
                     //Fix normal for current vertex and neighbours' corresponding vertices
@@ -730,12 +723,9 @@ public class TerrainController : MonoBehaviour
                 int index = startIndex + (j * step);
                 int otherIndex = otherStartIndex + (j * step);
 
-                float dims = rootDimensions / (Mathf.Pow(2, MyLoD+1));
-                float x = (float)(index % resolution) / (resolution - 1) * dims - dims / 2;
-                float y = (float)(index / resolution) / (resolution - 1) * dims - dims / 2;
-                Vector3 vertexPosition = FaceToCubeCoords(new Vector2(x, y), MyQuadrants[0], transform.GetChild(subMeshIndices[i]).GetComponent<TerrainController>().CenterCoords);
-
-                Vector3 normal = EstimateNormal(index, transform.GetChild(subMeshIndices[i]).GetComponent<TerrainController>().MyQuadrants);
+                TerrainController subTerrain = transform.GetChild(subMeshIndices[i]).GetComponent<TerrainController>();
+                Vector3 vertexPosition = LocateCubeVertex(index, subTerrain.MyQuadrants);
+                Vector3 normal = EstimateNormal(index, subTerrain.MyQuadrants);
                 norms[index] = normal;
                 otherNorms[otherIndex] = normal;
             }
@@ -757,14 +747,30 @@ public class TerrainController : MonoBehaviour
         nbr.FixOuterSeam(dirFromNbr);
     }
 
-    Vector3 EstimateNormal(int index, int[] quads)
+    Vector3 LocateCubeVertex(int index, int[] quads)
     {
-        float dims = rootDimensions / (Mathf.Pow(2, quads.Length-1));
+        float dims = rootDimensions / (Mathf.Pow(2, quads.Length - 1));
         float x = (float)(index % resolution) / (resolution - 1) * dims - dims / 2;
         float y = (float)(index / resolution) / (resolution - 1) * dims - dims / 2;
-        Vector3 vertexPosition = FaceToCubeCoords(new Vector2(x, y), quads[0], QuadsToTerrain(quads).CenterCoords);
+        return FaceToCubeCoords(new Vector2(x, y), quads[0], QuadsToTerrain(quads).CenterCoords);
+    }
+
+    Vector3 EstimateNormal(int index, int[] quads)
+    {
+        Vector3 vertexPosition = LocateCubeVertex(index, quads);
         
         return vertexPosition.normalized;
+    }
+
+    float GenerateElevation(Vector3 vertCubePos)
+    {
+        float elevation = Perlin.Noise(vertCubePos * 0.01f) + 0.5f * Perlin.Noise(vertCubePos * 0.1f);
+        return elevation;
+    }
+
+    Vector3 ApplyElevation(Vector3 vertCubePos, float elevation)
+    {
+        return vertCubePos.normalized * rootDimensions / 2 * (1 + elevation / 100);
     }
 
     TerrainController QuadsToTerrain(int[] quads)

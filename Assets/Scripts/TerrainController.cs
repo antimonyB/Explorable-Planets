@@ -674,7 +674,7 @@ public class TerrainController : MonoBehaviour
                     uvs[index] = new Vector2(elevation, 0.1f);
 
                     //Fix normal for current vertex and neighbours' corresponding vertices
-                    Vector3 normal = EstimateNormal(index, transform.GetChild(borderIndices[1,h]).GetComponent<TerrainController>().MyQuadrants);
+                    Vector3 normal = EstimateNormal(norms[index], nbrNorms[nbrIndex]);
                     norms[index] = normal;
                     nbrNorms[nbrIndex] = normal;
                 }
@@ -725,7 +725,7 @@ public class TerrainController : MonoBehaviour
 
                 TerrainController subTerrain = transform.GetChild(subMeshIndices[i]).GetComponent<TerrainController>();
                 Vector3 vertexPosition = LocateCubeVertex(index, subTerrain.MyQuadrants);
-                Vector3 normal = EstimateNormal(index, subTerrain.MyQuadrants);
+                Vector3 normal = EstimateNormal(norms[index], otherNorms[otherIndex]);
                 norms[index] = normal;
                 otherNorms[otherIndex] = normal;
             }
@@ -755,11 +755,10 @@ public class TerrainController : MonoBehaviour
         return FaceToCubeCoords(new Vector2(x, y), quads[0], QuadsToTerrain(quads).CenterCoords);
     }
 
-    Vector3 EstimateNormal(int index, int[] quads)
+    Vector3 EstimateNormal(Vector3 norm1, Vector3 norm2)
     {
-        Vector3 vertexPosition = LocateCubeVertex(index, quads);
-        
-        return vertexPosition.normalized;
+
+        return (norm1 + norm2) / 2f;
     }
 
     float GenerateElevation(Vector3 vertCubePos)

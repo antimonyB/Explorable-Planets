@@ -107,7 +107,7 @@ public class TerrainController : MonoBehaviour
                 Vector3 vertexPosition = LocateCubeVertex(n, MyQuadrants);
                 float elevation = GenerateElevation(vertexPosition);
                 vertices[n] = ApplyElevation(vertexPosition, elevation);
-                uvs[n] = new Vector2(elevation, 0.1f);
+                uvs[n] = CalculateUVs(elevation, vertexPosition, vertices[n])[0];
             }
         }
         mesh.vertices = vertices;
@@ -655,7 +655,7 @@ public class TerrainController : MonoBehaviour
                     Vector3 vertexPosition = LocateCubeVertex(nbrIndex, nbr.MyQuadrants);
                     float elevation = GenerateElevation(vertexPosition);
                     nbrVerts[nbrIndex] = ApplyElevation(vertexPosition, elevation);
-                    nbrUvs[nbrIndex] = new Vector2(elevation, 0.1f);
+                    nbrUvs[nbrIndex] = CalculateUVs(elevation, vertexPosition, nbrVerts[nbrIndex])[0];
                 }
 
                 if (i % vertRatio != 0) //If neighbour has no corresponding vertex
@@ -671,7 +671,7 @@ public class TerrainController : MonoBehaviour
                     Vector3 vertexPosition = LocateCubeVertex(index, subTerrain.MyQuadrants);
                     float elevation = GenerateElevation(vertexPosition);
                     verts[index] = ApplyElevation(vertexPosition, elevation);
-                    uvs[index] = new Vector2(elevation, 0.1f);
+                    uvs[index] = CalculateUVs(elevation, vertexPosition, verts[index])[0];
 
                     //Fix normal for current vertex and neighbours' corresponding vertices
                     Vector3 normal = EstimateNormal(norms[index], nbrNorms[nbrIndex]);
@@ -765,6 +765,16 @@ public class TerrainController : MonoBehaviour
     {
         float elevation = Perlin.Noise(vertCubePos * 0.01f) + 0.5f * Perlin.Noise(vertCubePos * 0.1f);
         return elevation;
+    }
+
+    Vector2[] CalculateUVs(float elevation, Vector3 vertCubePos, Vector3 pos)
+    {
+        Vector2[] uvArray = new Vector2[3];
+        uvArray[0] = new Vector2(pos.x, pos.y);
+        uvArray[1] = new Vector2(pos.z, elevation);
+        Vector2 biomePos = new Vector2(vertCubePos.normalized.x/2 + 0.5f, vertCubePos.normalized.y/2 + 0.5f);
+        uvArray[2] = biomePos;
+        return uvArray;
     }
 
     Vector3 ApplyElevation(Vector3 vertCubePos, float elevation)

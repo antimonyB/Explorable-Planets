@@ -5,7 +5,6 @@ using UnityEngine;
 
 public class TerrainController : MonoBehaviour
 {
-    private bool initiated;
     private int resolution = 33;
     private float rootDimensions;
     private float dimensions;
@@ -37,6 +36,7 @@ public class TerrainController : MonoBehaviour
     public int[] MyQuadrants { get; set; }
     public int MyLoD { get; set; }
     public Vector2 CenterCoords { get => centerCoords; set => centerCoords = value; }
+    public bool Initiated { get; set; }
 
     // Start is called before the first frame update
     void Start()
@@ -45,7 +45,7 @@ public class TerrainController : MonoBehaviour
 
     public void Initiate(int LoD, int[] quadrants)
     {
-        initiated = false;
+        Initiated = false;
         MyLoD = LoD;
         myFace = quadrants[0];
         MyQuadrants = quadrants;
@@ -70,35 +70,36 @@ public class TerrainController : MonoBehaviour
                 centerCoords.x += rootDimensions / Mathf.Pow(2, i) / 2;
         }
         
-        GenerateMesh();
+        StartCoroutine(GenerateMesh());
         if (LoD == 0)
         {
             //subdivide(1);
         }
-        initiated = true;
+        //initiated = true;
     }
 
     // Update is called once per frame
     void Update()
     {
-        if (!initiated)
+        if (!Initiated)
         {
             Debug.LogWarning("ERROR: Unexpected update before initiation");
             return;
         }
         if (MyLoD<maxLoD && transform.childCount==0 && Vector3.Distance(playerCam.transform.position, transform.position + transform.rotation * (FaceToCubeCoords(Vector2.zero).normalized*rootDimensions/2)) < divDistance[MyLoD] * rootDimensions / 1000)
         {
-            subdivide();
+            StartCoroutine(subdivide());
         }
     }
 
-    void GenerateMesh()
+    IEnumerator GenerateMesh()
     {
         //Generate vertices
         mesh = GetComponent<MeshFilter>().mesh = new Mesh();
         vertices = new Vector3[resolution*resolution];
         mesh.vertices = vertices;
         Vector2[] uvs = new Vector2[resolution * resolution];
+            print("io");
         for (int i = 0; i < resolution; i++)
         {
             for (int j = 0; j < resolution; j++)
@@ -109,6 +110,7 @@ public class TerrainController : MonoBehaviour
                 vertices[n] = ApplyElevation(vertexPosition, elevation);
                 uvs[n] = CalculateUVs(elevation, vertexPosition, vertices[n])[0];
             }
+            yield return null;
         }
         mesh.vertices = vertices;
         mesh.uv = uvs;
@@ -124,6 +126,7 @@ public class TerrainController : MonoBehaviour
         mesh.triangles = triangles;
         mesh.RecalculateNormals();
         mesh.RecalculateBounds();
+        Initiated = true;
     }
 
     int[] FindNeighbour(int[] quads, int dir)
@@ -796,7 +799,7 @@ public class TerrainController : MonoBehaviour
         return terrain.GetComponent<TerrainController>();
     }
 
-    void subdivide()
+    IEnumerator subdivide()
     {
         Vector3[] offsets = new Vector3[4];
         offsets[0] = transform.position + transform.rotation * new Vector3(-dimensions / 4, -dimensions / 4, 0);
@@ -816,17 +819,75 @@ public class TerrainController : MonoBehaviour
             subTerrains[i].GetComponent<TerrainController>().Initiate(MyLoD + 1, childQuadrants);
             subTerrains[i].transform.SetParent(transform);
         }
-        meshRenderer.enabled = false;
         Neighbours = new TerrainController[8];
-        Neighbours[1] = QuadsToTerrain(FindNeighbour(MyQuadrants, 1));
-        Neighbours[3] = QuadsToTerrain(FindNeighbour(MyQuadrants, 3));
-        Neighbours[5] = QuadsToTerrain(FindNeighbour(MyQuadrants, 5));
-        Neighbours[7] = QuadsToTerrain(FindNeighbour(MyQuadrants, 7));
-        for (int nbrDir = 1; nbrDir < 8; nbrDir += 2) //Loop through non diagonal neighbours, clockwise starting from top
+
+        //Wait for children ane neighbours to initiate
+        bool childrenInitiated = false;
+        bool neighboursInitiated = false;
+        while (!childrenInitiated || !neighboursInitiated)
+        {
+            childrenInitiated = true;
+            for (int i = 0; i < 4; i++)
+            {
+                if (!transform.GetChild(i).GetComponent<TerrainController>().IsFullyInitiated())
+                {
+                    childrenInitiated = false;
+                    break;
+                }
+            }
+            if (!childrenInitiated)
+            {
+                yield return null;
+            }
+            neighboursInitiated = true;
+            for (int i = 1; i < 8; i+=2)
+            {
+                Neighbours[i] = QuadsToTerrain(FindNeighbour(MyQuadrants, i));
+                if (!Neighbours[i].IsFullyInitiated())
+                {
+                    neighboursInitiated = false;
+                    break;
+                }
+            }
+            if (!neighboursInitiated)
+            {
+                yield return null;
+            }
+        }
+        for (int i = 0; i < 4; i++)
+        {
+            print(transform.GetChild(i).GetComponent<TerrainController>().IsFullyInitiated());
+        }
+        for (int i = 1; i < 8; i += 2)
+        {
+            print(QuadsToTerrain(FindNeighbour(MyQuadrants, i)).IsFullyInitiated());
+        }
+
+            for (int nbrDir = 1; nbrDir < 8; nbrDir += 2) //Loop through non diagonal neighbours, clockwise starting from top
         {
             FixOuterSeam(nbrDir);
         }
         FixInnerSeams();
+        meshRenderer.enabled = false;
+    }
+
+    bool IsFullyInitiated()
+    {
+        bool childrenInitiated = true;
+        if (transform.childCount > 0)
+        {
+            for (int i = 0; i < 4; i++)
+            {
+                if (!transform.GetChild(i).GetComponent<TerrainController>().IsFullyInitiated())
+                {
+                    childrenInitiated = false;
+                    break;
+                }
+            }
+        }
+        bool neighboursInitiated = true;
+
+        return Initiated && childrenInitiated && neighboursInitiated;
     }
 
     Vector3 FaceToCubeCoords(Vector2 faceCoords, int face, Vector2 centerCoords)

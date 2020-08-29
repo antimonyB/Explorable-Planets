@@ -101,6 +101,7 @@ public class TerrainController : MonoBehaviour
         vertices = new Vector3[resolution*resolution];
         mesh.vertices = vertices;
         Vector2[] uvs = new Vector2[resolution * resolution];
+        Vector2[] uvs2 = new Vector2[resolution * resolution];
         for (int i = 0; i < resolution; i++)
         {
             for (int j = 0; j < resolution; j++)
@@ -110,11 +111,13 @@ public class TerrainController : MonoBehaviour
                 float elevation = GenerateElevation(vertexPosition);
                 vertices[n] = ApplyElevation(vertexPosition, elevation);
                 uvs[n] = CalculateUVs(elevation, vertexPosition, vertices[n])[0];
+                uvs2[n] = CalculateUVs(elevation, vertexPosition, vertices[n])[1];
             }
             yield return null;
         }
         mesh.vertices = vertices;
         mesh.uv = uvs;
+        mesh.uv2 = uvs2;
 
         //Connect vertices into triangles
         triangles = new int[(resolution - 1) * (resolution - 1) * 6];
@@ -644,9 +647,11 @@ public class TerrainController : MonoBehaviour
             Vector3[] verts = myMesh.vertices;
             Vector3[] norms = myMesh.normals;
             Vector2[] uvs = myMesh.uv;
+            Vector2[] uvs2 = myMesh.uv2;
             Vector3[] nbrVerts = nbrMesh.vertices;
             Vector3[] nbrNorms = nbrMesh.normals;
             Vector2[] nbrUvs = nbrMesh.uv;
+            Vector2[] nbrUvs2 = nbrMesh.uv2;
             int prevIndex = 0;
             int prevNbrIndex = -1;
             for (int i = 0; i < resolution; i++)
@@ -689,9 +694,11 @@ public class TerrainController : MonoBehaviour
             myMesh.vertices = verts;
             myMesh.normals = norms;
             myMesh.uv = uvs;
+            myMesh.uv2 = uvs2;
             nbrMesh.vertices = nbrVerts;
             nbrMesh.normals = nbrNorms;
             nbrMesh.uv = nbrUvs;
+            nbrMesh.uv2 = nbrUvs2;
 
             //If neighbour is less detailed, start next iteration further along the same neighbour's edge
             if(!isEqualDtl)

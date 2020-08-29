@@ -509,6 +509,7 @@ public class TerrainController : MonoBehaviour
 
     public void FixOuterSeam(int nbrDir)
     {
+        Neighbours[nbrDir] = QuadsToTerrain(FindNeighbour(MyQuadrants, nbrDir));
         int nbrLoD = Neighbours[nbrDir].MyLoD;
         int dtl=MyLoD+1;
         int nbrDtl=nbrLoD;
@@ -758,6 +759,24 @@ public class TerrainController : MonoBehaviour
         nbr.FixOuterSeam(dirFromNbr);
     }
 
+    void FixAllSeams()
+    {
+        for (int nbrDir = 1; nbrDir < 8; nbrDir += 2) //Loop through non diagonal neighbours, clockwise starting from top
+        {
+            FixOuterSeam(nbrDir);
+        }
+        FixInnerSeams();
+        for(int i = 0; i < 4; i++)
+        {
+            Transform child = transform.GetChild(i);
+            TerrainController childTerrain = child.GetComponent<TerrainController>();
+            if (child.childCount > 0 && !childTerrain.isUndividing)
+            {
+                childTerrain.FixAllSeams();
+            }
+        }
+    }
+
     Vector3 LocateCubeVertex(int index, int[] quads)
     {
         float dims = rootDimensions / (Mathf.Pow(2, quads.Length - 1));
@@ -862,11 +881,7 @@ public class TerrainController : MonoBehaviour
                 yield return null;
             }
         }
-        for (int nbrDir = 1; nbrDir < 8; nbrDir += 2) //Loop through non diagonal neighbours, clockwise starting from top
-        {
-            FixOuterSeam(nbrDir);
-        }
-        FixInnerSeams();
+        FixAllSeams();
         meshRenderer.enabled = false;
 
         isSubdividing = false;
@@ -878,12 +893,15 @@ public class TerrainController : MonoBehaviour
 
         bool childrenInitiated = false;
         bool neighboursInitiated = false;
-        if(parentTerrain != null)
+        bool parentChildrenInitiated = false;
+        bool parentNeighboursInitiated = false;
+        //Wait for children and neighbours to initiate
+        while (!parentChildrenInitiated || !parentNeighboursInitiated || !childrenInitiated || !neighboursInitiated)
         {
-            //Wait for neighbours to initiate
-            while (!childrenInitiated || !neighboursInitiated)
+            parentChildrenInitiated = true;
+            parentNeighboursInitiated = true;
+            if (parentTerrain != null)
             {
-                childrenInitiated = true;
                 for (int i = 0; i < 4; i++)
                 {
                     if (!parentTerrain.transform.GetChild(i).GetComponent<TerrainController>().IsFullyInitiated())
@@ -892,7 +910,6 @@ public class TerrainController : MonoBehaviour
                         break;
                     }
                 }
-                neighboursInitiated = true;
                 for (int i = 1; i < 8; i += 2)
                 {
                     parentTerrain.Neighbours[i] = QuadsToTerrain(parentTerrain.FindNeighbour(parentTerrain.MyQuadrants, i));
@@ -902,24 +919,8 @@ public class TerrainController : MonoBehaviour
                         break;
                     }
                 }
-                if (!childrenInitiated || !neighboursInitiated)
-                {
-                    yield return null;
-                }
             }
 
-            for (int nbrDir = 1; nbrDir < 8; nbrDir += 2) //Loop through non diagonal neighbours, clockwise starting from top
-            {
-                parentTerrain.FixOuterSeam(nbrDir);
-            }
-            parentTerrain.FixInnerSeams();
-        }
-
-        //Wait for children and neighbours to initiate
-        childrenInitiated = false;
-        neighboursInitiated = false;
-        while (!childrenInitiated || !neighboursInitiated)
-        {
             childrenInitiated = true;
             for (int i = 0; i < 4; i++)
             {
@@ -939,7 +940,8 @@ public class TerrainController : MonoBehaviour
                     break;
                 }
             }
-            if (!childrenInitiated || !neighboursInitiated)
+
+            if (!parentChildrenInitiated || !parentNeighboursInitiated || !childrenInitiated || !neighboursInitiated)
             {
                 yield return null;
             }
@@ -950,6 +952,9 @@ public class TerrainController : MonoBehaviour
             Destroy(transform.GetChild(i).gameObject);
         }
         GetComponent<MeshRenderer>().enabled = true;
+        yield return 0;
+        //Consider adding another check for child and neighbour initiation
+        parentTerrain.FixAllSeams();
 
         isUndividing = false;
     }

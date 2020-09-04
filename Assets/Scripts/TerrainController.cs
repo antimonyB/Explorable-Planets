@@ -10,6 +10,7 @@ public class TerrainController : MonoBehaviour
     private float dimensions;
     private readonly int[] divDistance = { 1600, 800, 400, 200, 100 };
     private int maxLoD=5;
+    int terrainLoadSpeed = 100;
     [SerializeField]
     private int myFace;
     [SerializeField]
@@ -20,7 +21,9 @@ public class TerrainController : MonoBehaviour
     private MeshRenderer meshRenderer;
     private bool isUndividing;
     private bool isSubdividing;
-
+    private int quadrantID;
+    private static int idCount = 0;
+    private static List<int> queue = new List<int>();
     [SerializeField]
     private GameObject planet;
     private PlanetController planetScript;
@@ -40,17 +43,20 @@ public class TerrainController : MonoBehaviour
     public Vector2 CenterCoords { get => centerCoords; set => centerCoords = value; }
     public bool Initiated { get; set; }
 
+
     // Start is called before the first frame update
     void Start()
     {
     }
 
-    public void Initiate(int LoD, int[] quadrants)
+    public void Initiate(int LoD, int[] quadrants, bool enableRenderer = true)
     {
         Initiated = false;
         MyLoD = LoD;
         myFace = quadrants[0];
         MyQuadrants = quadrants;
+        quadrantID = idCount;
+        idCount++;
         planet = transform.root.gameObject;
         planetScript = planet.GetComponent<PlanetController>();
         rootDimensions = planetScript.RootDimensions;
@@ -58,6 +64,10 @@ public class TerrainController : MonoBehaviour
         terrainPrefab = planetScript.TerrainPrefab;
         playerCam = GameObject.FindGameObjectWithTag("MainCamera");
         meshRenderer = gameObject.GetComponent<MeshRenderer>();
+        if (!enableRenderer)
+        {
+            meshRenderer.enabled = false;
+        }
 
         centerCoords = Vector2.zero;
         for(int i = 1; i <= LoD; i++)
@@ -72,7 +82,7 @@ public class TerrainController : MonoBehaviour
                 centerCoords.x += rootDimensions / Mathf.Pow(2, i) / 2;
         }
         
-        StartCoroutine(GenerateMesh());
+        StartCoroutine(QueueGeneration());
     }
 
     // Update is called once per frame
@@ -82,16 +92,28 @@ public class TerrainController : MonoBehaviour
         {
             return;
         }
+        if (queue.Count > 0)
+        {
+            return;
+        }
         if (!isUndividing && !isSubdividing && MyLoD<maxLoD && transform.childCount==0 && Vector3.Distance(playerCam.transform.position, transform.position + transform.rotation * (FaceToCubeCoords(Vector2.zero).normalized*rootDimensions/2)) < divDistance[MyLoD] * rootDimensions / 1000)
         {
-            isSubdividing = true;
             StartCoroutine(Subdivide());
         }
         else if (!isUndividing && !isSubdividing && transform.childCount > 0 && Vector3.Distance(playerCam.transform.position, transform.position + transform.rotation * (FaceToCubeCoords(Vector2.zero).normalized * rootDimensions / 2)) > divDistance[MyLoD] * rootDimensions / 1000)
         {
-            isUndividing = true;
             StartCoroutine(Undivide());
         }
+    }
+
+    IEnumerator QueueGeneration()
+    {
+        queue.Add(quadrantID);
+        while (queue[0] != quadrantID)
+        {
+            yield return null;
+        }
+        StartCoroutine(GenerateMesh());
     }
 
     IEnumerator GenerateMesh()
@@ -112,8 +134,11 @@ public class TerrainController : MonoBehaviour
                 vertices[n] = ApplyElevation(vertexPosition, elevation);
                 uvs[n] = CalculateUVs(elevation, vertexPosition, vertices[n])[0];
                 uvs2[n] = CalculateUVs(elevation, vertexPosition, vertices[n])[1];
+                if (n % terrainLoadSpeed == 0)
+                {
+                    yield return null;
+                }
             }
-            yield return null;
         }
         mesh.vertices = vertices;
         mesh.uv = uvs;
@@ -131,6 +156,7 @@ public class TerrainController : MonoBehaviour
         mesh.RecalculateNormals();
         mesh.RecalculateBounds();
         Initiated = true;
+        queue.RemoveAt(0);
     }
 
     int[] FindNeighbour(int[] quads, int dir)
@@ -748,9 +774,9 @@ public class TerrainController : MonoBehaviour
 
     void FixOppositeSide(TerrainController nbr, int dirFromNbr, int[,] borderIndices)
     {
-        for(int i = 0; i < 2; i++){
-            if(nbr.transform.GetChild(borderIndices[2,i]).childCount > 1){
-                FixOppositeSide(nbr.transform.GetChild(borderIndices[2,i]).GetComponent<TerrainController>(), dirFromNbr, borderIndices);
+        for (int i = 0; i < 2; i++) {
+            if (nbr.transform.GetChild(borderIndices[2, i]).childCount > 1) {
+                FixOppositeSide(nbr.transform.GetChild(borderIndices[2, i]).GetComponent<TerrainController>(), dirFromNbr, borderIndices);
             }
         }
         TerrainController[] temp = new TerrainController[8];
@@ -843,139 +869,41 @@ public class TerrainController : MonoBehaviour
             }
             childQuadrants[MyLoD + 1] = i;
             subTerrains[i] = GameObject.Instantiate(terrainPrefab, transform.position, transform.rotation, transform);
-            subTerrains[i].GetComponent<TerrainController>().Initiate(MyLoD + 1, childQuadrants);
+            subTerrains[i].GetComponent<TerrainController>().Initiate(MyLoD + 1, childQuadrants, false);
             subTerrains[i].transform.SetParent(transform);
         }
         Neighbours = new TerrainController[8];
 
-        //Wait for children and neighbours to initiate
-        bool childrenInitiated = false;
-        bool neighboursInitiated = false;
-        while (!childrenInitiated || !neighboursInitiated)
+        while (queue.Count > 0)
         {
-            if (isUndividing || transform.childCount == 0)
-            {
-                //yield break;
-            }
-            childrenInitiated = true;
-            for (int i = 0; i < 4; i++)
-            {
-                if (!transform.GetChild(i).GetComponent<TerrainController>().IsFullyInitiated())
-                {
-                    childrenInitiated = false;
-                    break;
-                }
-            }
-            neighboursInitiated = true;
-            for (int i = 1; i < 8; i+=2)
-            {
-                Neighbours[i] = QuadsToTerrain(FindNeighbour(MyQuadrants, i));
-                if (!Neighbours[i].IsFullyInitiated())
-                {
-                    neighboursInitiated = false;
-                    break;
-                }
-            }
-            if (!childrenInitiated || !neighboursInitiated)
-            {
-                yield return null;
-            }
+            yield return null;
         }
         FixAllSeams();
         meshRenderer.enabled = false;
-
-        isSubdividing = false;
+        for (int i = 0; i < 4; i++)
+        {
+            subTerrains[i].GetComponent<MeshRenderer>().enabled = true;
+        }
     }
 
     IEnumerator Undivide()
     {
         TerrainController parentTerrain = transform.parent.GetComponent<TerrainController>();
 
-        bool childrenInitiated = false;
-        bool neighboursInitiated = false;
-        bool parentChildrenInitiated = false;
-        bool parentNeighboursInitiated = false;
-        //Wait for children and neighbours to initiate
-        while (!parentChildrenInitiated || !parentNeighboursInitiated || !childrenInitiated || !neighboursInitiated)
-        {
-            parentChildrenInitiated = true;
-            parentNeighboursInitiated = true;
-            if (parentTerrain != null)
-            {
-                for (int i = 0; i < 4; i++)
-                {
-                    if (!parentTerrain.transform.GetChild(i).GetComponent<TerrainController>().IsFullyInitiated())
-                    {
-                        childrenInitiated = false;
-                        break;
-                    }
-                }
-                for (int i = 1; i < 8; i += 2)
-                {
-                    parentTerrain.Neighbours[i] = QuadsToTerrain(parentTerrain.FindNeighbour(parentTerrain.MyQuadrants, i));
-                    if (!parentTerrain.Neighbours[i].IsFullyInitiated())
-                    {
-                        neighboursInitiated = false;
-                        break;
-                    }
-                }
-            }
-
-            childrenInitiated = true;
-            for (int i = 0; i < 4; i++)
-            {
-                if (!transform.GetChild(i).GetComponent<TerrainController>().IsFullyInitiated())
-                {
-                    childrenInitiated = false;
-                    break;
-                }
-            }
-            neighboursInitiated = true;
-            for (int i = 1; i < 8; i += 2)
-            {
-                Neighbours[i] = QuadsToTerrain(FindNeighbour(MyQuadrants, i));
-                if (!Neighbours[i].IsFullyInitiated())
-                {
-                    neighboursInitiated = false;
-                    break;
-                }
-            }
-
-            if (!parentChildrenInitiated || !parentNeighboursInitiated || !childrenInitiated || !neighboursInitiated)
-            {
-                yield return null;
-            }
-        }
-
         for (int i = 0; i < 4; i++)
         {
             Destroy(transform.GetChild(i).gameObject);
         }
         GetComponent<MeshRenderer>().enabled = true;
-        yield return 0;
-        //Consider adding another check for child and neighbour initiation
-        parentTerrain.FixAllSeams();
 
-        isUndividing = false;
-    }
-
-    bool IsFullyInitiated()
-    {
-        bool childrenInitiated = true;
-        if (transform.childCount > 0)
+        if (parentTerrain != null)
         {
-            for (int i = 0; i < 4; i++)
+            while (queue.Count > 0)
             {
-                if (!transform.GetChild(i).GetComponent<TerrainController>().IsFullyInitiated())
-                {
-                    childrenInitiated = false;
-                    break;
-                }
+                yield return null;
             }
+            parentTerrain.FixAllSeams();
         }
-        bool neighboursInitiated = true;
-
-        return Initiated && childrenInitiated && neighboursInitiated;
     }
 
     Vector3 FaceToCubeCoords(Vector2 faceCoords, int face, Vector2 centerCoords)

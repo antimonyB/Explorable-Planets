@@ -691,7 +691,9 @@ public class TerrainController : MonoBehaviour
                     Vector3 vertexPosition = LocateCubeVertex(nbrIndex, nbr.MyQuadrants);
                     float elevation = GenerateElevation(vertexPosition);
                     nbrVerts[nbrIndex] = ApplyElevation(vertexPosition, elevation);
-                    nbrUvs[nbrIndex] = CalculateUVs(elevation, vertexPosition, nbrVerts[nbrIndex])[0];
+                    Vector2[] uvArr = CalculateUVs(elevation, vertexPosition, verts[index]);
+                    nbrUvs[nbrIndex] = uvArr[0];
+                    nbrUvs2[nbrIndex] = uvArr[1];
                 }
 
                 if (i % vertRatio != 0) //If neighbour has no corresponding vertex
@@ -700,6 +702,7 @@ public class TerrainController : MonoBehaviour
                     verts[index] = verts[prevIndex];
                     norms[index] = norms[prevIndex];
                     uvs[index] = uvs[prevIndex];
+                    uvs2[index] = uvs2[prevIndex];
                 }
                 else{
                     //Regenerate current vertex in case it has been hidden before
@@ -707,7 +710,9 @@ public class TerrainController : MonoBehaviour
                     Vector3 vertexPosition = LocateCubeVertex(index, subTerrain.MyQuadrants);
                     float elevation = GenerateElevation(vertexPosition);
                     verts[index] = ApplyElevation(vertexPosition, elevation);
-                    uvs[index] = CalculateUVs(elevation, vertexPosition, verts[index])[0];
+                    Vector2[] uvArr = CalculateUVs(elevation, vertexPosition, verts[index]);
+                    uvs[index] = uvArr[0];
+                    uvs2[index] = uvArr[1];
 
                     //Fix normal for current vertex and neighbours' corresponding vertices
                     Vector3 normal = EstimateNormal(norms[index], nbrNorms[nbrIndex]);

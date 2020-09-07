@@ -533,7 +533,19 @@ public class TerrainController : MonoBehaviour
         return indices;
     }
 
-    public void FixOuterSeam(int nbrDir)
+    void FixRootSeams()
+    {
+        for (int nbrDir = 1; nbrDir < 8; nbrDir += 2)
+        {
+            Neighbours[nbrDir] = QuadsToTerrain(FindNeighbour(MyQuadrants, nbrDir));
+            if (Neighbours[nbrDir].transform.childCount > 1)
+            {
+                Neighbours[nbrDir].FixAllSeams();
+            }
+        }
+    }
+
+    void FixOuterSeam(int nbrDir)
     {
         Neighbours[nbrDir] = QuadsToTerrain(FindNeighbour(MyQuadrants, nbrDir));
         int nbrLoD = Neighbours[nbrDir].MyLoD;
@@ -900,14 +912,18 @@ public class TerrainController : MonoBehaviour
             Destroy(transform.GetChild(i).gameObject);
         }
         GetComponent<MeshRenderer>().enabled = true;
-
+        yield return null;
+        while (queue.Count > 0)
+        {
+            yield return null;
+        }
         if (parentTerrain != null)
         {
-            while (queue.Count > 0)
-            {
-                yield return null;
-            }
             parentTerrain.FixAllSeams();
+        }
+        else
+        {
+            FixRootSeams();
         }
     }
 

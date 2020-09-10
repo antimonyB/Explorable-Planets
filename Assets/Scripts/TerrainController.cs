@@ -124,6 +124,7 @@ public class TerrainController : MonoBehaviour
         mesh.vertices = vertices;
         Vector2[] uvs = new Vector2[resolution * resolution];
         Vector2[] uvs2 = new Vector2[resolution * resolution];
+        Vector2[] uvs3 = new Vector2[resolution * resolution];
         for (int i = 0; i < resolution; i++)
         {
             for (int j = 0; j < resolution; j++)
@@ -134,6 +135,7 @@ public class TerrainController : MonoBehaviour
                 vertices[n] = ApplyElevation(vertexPosition, elevation);
                 uvs[n] = CalculateUVs(elevation, vertexPosition, vertices[n])[0];
                 uvs2[n] = CalculateUVs(elevation, vertexPosition, vertices[n])[1];
+                uvs3[n] = CalculateUVs(elevation, vertexPosition, vertices[n])[2];
                 if (n % terrainLoadSpeed == 0)
                 {
                     yield return null;
@@ -143,6 +145,7 @@ public class TerrainController : MonoBehaviour
         mesh.vertices = vertices;
         mesh.uv = uvs;
         mesh.uv2 = uvs2;
+        mesh.uv3 = uvs3;
 
         //Connect vertices into triangles
         triangles = new int[(resolution - 1) * (resolution - 1) * 6];
@@ -687,10 +690,12 @@ public class TerrainController : MonoBehaviour
             Vector3[] norms = myMesh.normals;
             Vector2[] uvs = myMesh.uv;
             Vector2[] uvs2 = myMesh.uv2;
+            Vector2[] uvs3 = myMesh.uv3;
             Vector3[] nbrVerts = nbrMesh.vertices;
             Vector3[] nbrNorms = nbrMesh.normals;
             Vector2[] nbrUvs = nbrMesh.uv;
             Vector2[] nbrUvs2 = nbrMesh.uv2;
+            Vector2[] nbrUvs3 = nbrMesh.uv3;
             int prevIndex = 0;
             int prevNbrIndex = -1;
             for (int i = 0; i < resolution; i++)
@@ -706,6 +711,7 @@ public class TerrainController : MonoBehaviour
                     Vector2[] uvArr = CalculateUVs(elevation, vertexPosition, verts[index]);
                     nbrUvs[nbrIndex] = uvArr[0];
                     nbrUvs2[nbrIndex] = uvArr[1];
+                    nbrUvs3[nbrIndex] = uvArr[2];
                 }
 
                 if (i % vertRatio != 0) //If neighbour has no corresponding vertex
@@ -715,6 +721,7 @@ public class TerrainController : MonoBehaviour
                     norms[index] = norms[prevIndex];
                     uvs[index] = uvs[prevIndex];
                     uvs2[index] = uvs2[prevIndex];
+                    uvs3[index] = uvs3[prevIndex];
                 }
                 else{
                     //Regenerate current vertex in case it has been hidden before
@@ -725,6 +732,7 @@ public class TerrainController : MonoBehaviour
                     Vector2[] uvArr = CalculateUVs(elevation, vertexPosition, verts[index]);
                     uvs[index] = uvArr[0];
                     uvs2[index] = uvArr[1];
+                    uvs3[index] = uvArr[2];
 
                     //Fix normal for current vertex and neighbours' corresponding vertices
                     Vector3 normal = EstimateNormal(norms[index], nbrNorms[nbrIndex]);
@@ -739,10 +747,12 @@ public class TerrainController : MonoBehaviour
             myMesh.normals = norms;
             myMesh.uv = uvs;
             myMesh.uv2 = uvs2;
+            myMesh.uv3 = uvs3;
             nbrMesh.vertices = nbrVerts;
             nbrMesh.normals = nbrNorms;
             nbrMesh.uv = nbrUvs;
             nbrMesh.uv2 = nbrUvs2;
+            nbrMesh.uv3 = nbrUvs3;
 
             //If neighbour is less detailed, start next iteration further along the same neighbour's edge
             if(!isEqualDtl)

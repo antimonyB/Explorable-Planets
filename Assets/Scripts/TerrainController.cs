@@ -22,8 +22,7 @@ public class TerrainController : MonoBehaviour
     private bool isUndividing;
     private bool isSubdividing;
     private int quadrantID;
-    private static int idCount = 0;
-    private static List<int> queue = new List<int>();
+    private static List<int> queue;
     [SerializeField]
     private GameObject planet;
     private PlanetController planetScript;
@@ -55,10 +54,11 @@ public class TerrainController : MonoBehaviour
         MyLoD = LoD;
         myFace = quadrants[0];
         MyQuadrants = quadrants;
-        quadrantID = idCount;
-        idCount++;
         planet = transform.root.gameObject;
         planetScript = planet.GetComponent<PlanetController>();
+        quadrantID = planetScript.IdCount;
+        planetScript.IdCount++;
+        queue = planetScript.Queue;
         rootDimensions = planetScript.RootDimensions;
         dimensions = rootDimensions / (Mathf.Pow(2, MyLoD));
         terrainPrefab = planetScript.TerrainPrefab;

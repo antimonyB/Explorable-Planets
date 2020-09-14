@@ -14,6 +14,9 @@ public class PlanetController : MonoBehaviour
 
     public GameObject TerrainPrefab { get => terrainPrefab; set => terrainPrefab = value; }
 
+    public int IdCount { get; set; } = 0;
+    public List<int> Queue { get; set; } = new List<int>();
+
     // Start is called before the first frame update
     void Start()
     {

@@ -44,7 +44,7 @@ public class PlanetController : MonoBehaviour
         }
         for (int i = 0; i < 6; i++) {
             terrainRoots[i] = GameObject.Instantiate(TerrainPrefab, transform.position, transform.rotation, transform);
-            terrainRoots[i].GetComponent<TerrainController>().Initiate(0,new int[] { i });
+            terrainRoots[i].GetComponent<TerrainController>().Initiate(0,new int[] { i }, true, hasMasterPlanet);
         }
     }
 
@@ -54,6 +54,8 @@ public class PlanetController : MonoBehaviour
         if (hasMasterPlanet)
         {
             MyCam.transform.position = transform.position + (PlayerCam.transform.position - masterPlanet.transform.position) * transform.localScale.x / masterPlanet.transform.localScale.x;
+            MyCam.transform.rotation = PlayerCam.transform.rotation;
+            transform.rotation = masterPlanet.transform.rotation;
         }
     }
 }

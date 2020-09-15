@@ -21,6 +21,8 @@ public class TerrainController : MonoBehaviour
     private MeshRenderer meshRenderer;
     private bool isUndividing;
     private bool isSubdividing;
+    private bool isDistant;
+    private const int DISTANT_LAYER = 8;
     private int quadrantID;
     private List<int> queue;
     [SerializeField]
@@ -47,7 +49,7 @@ public class TerrainController : MonoBehaviour
     {
     }
 
-    public void Initiate(int LoD, int[] quadrants, bool enableRenderer = true)
+    public void Initiate(int LoD, int[] quadrants, bool enableRenderer = true, bool isDistant = false)
     {
         Initiated = false;
         MyLoD = LoD;
@@ -63,6 +65,11 @@ public class TerrainController : MonoBehaviour
         maxLoD = planetScript.MaxLoD;
         terrainPrefab = planetScript.TerrainPrefab;
         myCam = planetScript.MyCam;
+        this.isDistant = isDistant;
+        if (isDistant)
+        {
+            gameObject.layer = DISTANT_LAYER;
+        }
         meshRenderer = gameObject.GetComponent<MeshRenderer>();
         if (!enableRenderer)
         {
@@ -898,7 +905,7 @@ public class TerrainController : MonoBehaviour
             }
             childQuadrants[MyLoD + 1] = i;
             subTerrains[i] = GameObject.Instantiate(terrainPrefab, transform.position, transform.rotation, transform);
-            subTerrains[i].GetComponent<TerrainController>().Initiate(MyLoD + 1, childQuadrants, false);
+            subTerrains[i].GetComponent<TerrainController>().Initiate(MyLoD + 1, childQuadrants, false, isDistant);
             subTerrains[i].transform.SetParent(transform);
         }
         Neighbours = new TerrainController[8];

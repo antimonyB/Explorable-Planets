@@ -8,8 +8,8 @@ public class TerrainController : MonoBehaviour
     private int resolution = 33;
     private float rootDimensions;
     private float dimensions;
-    private readonly int[] divDistance = { 1600, 800, 400, 200, 100 };
-    private int maxLoD=5;
+    private readonly int[] divDistance = { 1600, 800, 400, 200, 100, 50 };
+    private int maxLoD;
     int terrainLoadSpeed = 100;
     [SerializeField]
     private int myFace;
@@ -22,14 +22,13 @@ public class TerrainController : MonoBehaviour
     private bool isUndividing;
     private bool isSubdividing;
     private int quadrantID;
-    private static List<int> queue;
+    private List<int> queue;
     [SerializeField]
     private GameObject planet;
     private PlanetController planetScript;
     [SerializeField]
     private GameObject terrainPrefab;
-    [SerializeField]
-    private GameObject playerCam;
+    private GameObject myCam;
     [SerializeField]
     private GameObject sphere;
 
@@ -61,8 +60,9 @@ public class TerrainController : MonoBehaviour
         queue = planetScript.Queue;
         rootDimensions = planetScript.RootDimensions;
         dimensions = rootDimensions / (Mathf.Pow(2, MyLoD));
+        maxLoD = planetScript.MaxLoD;
         terrainPrefab = planetScript.TerrainPrefab;
-        playerCam = GameObject.FindGameObjectWithTag("MainCamera");
+        myCam = planetScript.MyCam;
         meshRenderer = gameObject.GetComponent<MeshRenderer>();
         if (!enableRenderer)
         {
@@ -96,11 +96,13 @@ public class TerrainController : MonoBehaviour
         {
             return;
         }
-        if (!isUndividing && !isSubdividing && MyLoD<maxLoD && transform.childCount==0 && Vector3.Distance(playerCam.transform.position, transform.position + transform.rotation * (FaceToCubeCoords(Vector2.zero).normalized*rootDimensions/2)) < divDistance[MyLoD] * rootDimensions / 1000)
+        float temp1 = Vector3.Distance(myCam.transform.position, transform.position + transform.rotation * (FaceToCubeCoords(Vector2.zero).normalized * rootDimensions / 2));
+        float temp2 = divDistance[MyLoD] * rootDimensions * transform.lossyScale.x / 1000f;
+        if (!isUndividing && !isSubdividing && MyLoD<maxLoD && transform.childCount==0 && Vector3.Distance(myCam.transform.position, transform.position + transform.rotation * (FaceToCubeCoords(Vector2.zero).normalized*rootDimensions * transform.lossyScale.x / 2)) < divDistance[MyLoD] * rootDimensions * transform.lossyScale.x / 1000f)
         {
             StartCoroutine(Subdivide());
         }
-        else if (!isUndividing && !isSubdividing && transform.childCount > 0 && Vector3.Distance(playerCam.transform.position, transform.position + transform.rotation * (FaceToCubeCoords(Vector2.zero).normalized * rootDimensions / 2)) > divDistance[MyLoD] * rootDimensions / 1000)
+        else if (!isUndividing && !isSubdividing && transform.childCount > 0 && Vector3.Distance(myCam.transform.position, transform.position + transform.rotation * (FaceToCubeCoords(Vector2.zero).normalized * rootDimensions * transform.lossyScale.x / 2)) > divDistance[MyLoD] * rootDimensions * transform.lossyScale.x / 1000f)
         {
             StartCoroutine(Undivide());
         }

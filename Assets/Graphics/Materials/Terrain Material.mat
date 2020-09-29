@@ -51,6 +51,14 @@ Material:
         m_Texture: {fileID: 2800000, guid: 8eb53b6b7b4376049854e1c973045910, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
+    - _Level2:
+        m_Texture: {fileID: 2800000, guid: 3c17132c3e3272243925d921a4e3111f, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _Level3:
+        m_Texture: {fileID: 2800000, guid: 65f9db39429c20f46a907abe852c9400, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
     - _MainTex:
         m_Texture: {fileID: 2800000, guid: 8eb53b6b7b4376049854e1c973045910, type: 3}
         m_Scale: {x: 1, y: 1}
@@ -61,6 +69,10 @@ Material:
         m_Offset: {x: 0, y: 0}
     - _OcclusionMap:
         m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _Ocean:
+        m_Texture: {fileID: 2800000, guid: 65727fcb8ee0dd148b97e65c69730701, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _ParallaxMap:
